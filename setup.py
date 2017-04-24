@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='create_cloudformation',
+    name='go_tropo',
     version='0.1',
-    py_modules=['create_cloudformation'],
+    py_modules=['go_tropo'],
     install_requires=[
         'boto3',
         'troposphere',
