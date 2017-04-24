@@ -1,0 +1,10 @@
+Python package to create cloudformation templates.
+
+Usage: create_cloudformation.py COMMAND config/app/configfile.yaml
+
+install:
+
+pip install .
+
+or for development:
+pip install --editable .
