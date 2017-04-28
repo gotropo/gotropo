@@ -113,7 +113,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     stack_sg = create.network.sec_group(
         template,
         name         = stack_sg_name,
-        in_networks  = [],
+        in_networks  = networks_cidrs,
         in_ports     = stack_ports,
         out_ports    = stack_ports,
         ssh_hosts    = ops.deploy_hosts,
@@ -173,6 +173,7 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
             bash_files       = [stack_userdata_file],
             install_packages = ["docker"],
             sub_values       = userdata_vars_copy,
+            env_vars         = instance_setup.get('environment')
         )
 
         ebs_volume = ec2.EBSBlockDevice( VolumeSize = "50", VolumeType = "gp2", DeleteOnTermination = False)

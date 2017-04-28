@@ -464,7 +464,8 @@ def multipart_userdata(
         awslogs = True,
         add_trap_file = True,
         ip_list = None,
-        enable_mem_metrics = True):
+        enable_mem_metrics = True,
+        env_vars = None):
 
     #TODO: allow multiple pieces to be attached
     from email.mime.multipart import MIMEMultipart
@@ -518,6 +519,16 @@ def multipart_userdata(
                 "CODE=1\n"
             ])),
             path = "/wait.sh",
+            permissions = '0400'
+        )
+
+    def env_file(env_values):
+        return dict(
+            content = literal_unicode("".join(
+            [
+                "".join(["export ", k, "=\"", str(v), "\"\n"]) for k,v in env_values.items()
+            ])),
+            path = "/envs.sh",
             permissions = '0400'
         )
     #TODO: --> move
@@ -616,6 +627,8 @@ def multipart_userdata(
         if add_trap_file:
             put_files.append(trap_signals_file())
             put_files.append(wait_signals_file())
+        if env_vars:
+            put_files.append(env_file(env_vars))
         for b in bash_files:
             script_filename = "/%s.sh" % os.path.basename(b)
             put_files.append(dict(

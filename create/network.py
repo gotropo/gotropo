@@ -81,19 +81,28 @@ def routetable(template, vpc_id, name, subnet, nat_host_id = None, igw_id = None
         )
     )
 
-def sg_rule(net, port, proto="tcp"):
+def sg_rule(net, port):
+    if isinstance(port, int):
+        port_num = port
+        proto = "tcp"
+    else:
+        if "/" in port:
+            port_num, proto = port.split('/')
+        else: #TODO: this shouldn't be here twice
+            port_num = port
+            proto = "tcp"
     if net[0:2] == "sg":
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port,
-            ToPort     = port,
+            FromPort   = port_num,
+            ToPort     = port_num,
             SourceSecurityGroupId = net
         )
     else:
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port,
-            ToPort     = port,
+            FromPort   = port_num,
+            ToPort     = port_num,
             CidrIp     = net
         )
     return sg_r
