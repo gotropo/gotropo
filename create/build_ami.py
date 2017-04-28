@@ -50,7 +50,8 @@ def build_ami_role(template, ops, app_cfn_options):
                            },
                            {
                                "Action": [
-                                   "autoscaling:DescribeAutoScalingGroups"
+                                   "autoscaling:DescribeAutoScalingGroups",
+                                   "autoscaling:UpdateAutoScalingGroup"
                                 ],
                                "Resource": "*",
                                "Effect": "Allow"

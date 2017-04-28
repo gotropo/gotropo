@@ -1,7 +1,7 @@
 from troposphere import awslambda
 from troposphere import GetAtt, Ref
 from . import iam
-from .utils import file_sha, find_files, create_zip
+from .utils import file_sha, find_files, create_zip, get_s3_client
 from itertools import repeat
 import boto3
 import os
@@ -13,7 +13,7 @@ def remote_filename(local_file):
 
 
 def upload_lambda_code(s3_bucket, s3_prefix, local_file, sha, lib_files = []):
-    s3 = boto3.client("s3")
+    s3 = get_s3_client()
 
     local_path = os.path.dirname(os.path.abspath(local_file))
 
@@ -25,7 +25,7 @@ def upload_lambda_code(s3_bucket, s3_prefix, local_file, sha, lib_files = []):
     s3.put_object(Body = upload_body, Bucket = s3_bucket, Key = upload_key)
 
 def check_lambda_code(s3_bucket, s3_prefix, lambda_file, lib_files = []):
-    s3 = boto3.client('s3')
+    s3 = get_s3_client()
 
     sha = file_sha(lambda_file)
     remote_file = remote_filename(lambda_file)

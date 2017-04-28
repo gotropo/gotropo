@@ -3,6 +3,7 @@ import hashlib
 import io
 import os
 import zipfile
+from botocore.client import Config
 
 def find_files(paths, exclude_suffixes = ['pyc']):
     if type(paths) == str:
@@ -42,9 +43,11 @@ def check_suffixes(path, suffixes):
             return True
     return False
 
+def get_s3_client():
+    return boto3.client('s3', config=Config(signature_version='s3v4'))
 
 def upload_path_to_zip(s3_bucket, s3_prefix, local_path, dry_run):
-    s3 = boto3.client('s3')
+    s3 = get_s3_client()
 
     sha = path_sha(local_path)
     remote_filename = "".join([os.path.basename(local_path),"-",sha,".zip"])
