@@ -128,13 +128,13 @@ def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rule
     if custom_rules:
         for cr in custom_rules:
             if len(cr) < 4:
-                proto="tcp"
+                custom_port = cr[1]
             else:
-                proto = cr[3]
+                custom_port = str(cr[1])+"/"+cr[3]
             if cr[2] == "egress":
-                egress_rules.append(sg_rule(net=cr[0],port=cr[1],proto=proto))
+                egress_rules.append(sg_rule(net=cr[0],port=custom_port))
             else:
-                ingress_rules.append(sg_rule(net=cr[0],port=cr[1],proto=proto))
+                ingress_rules.append(sg_rule(net=cr[0],port=custom_port))
 
 
     sg = template.add_resource(
