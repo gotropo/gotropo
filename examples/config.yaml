@@ -1,0 +1,35 @@
+app_name: ThisIsAnApp
+billing_id: BillingTag_shouldbeoptional
+deploy_bucket: bucketname
+ami_image: id1234
+deploy_env: test #prod
+aws_region: ap-southeast-2
+vpc_id: somevpcid
+availability_zones:
+  az1: ap-southeast-2a
+nat_host_ids:
+  az1: ec2_id_shouldbeoptional
+ofc_vpn_id: 123_id_shouldbeoptional
+vpn_route: 192.1.1.1/24
+build_ami: false
+cloudwatch_alarm: false
+userdata_file: examples/a_file_somewhere.userdata
+install_packages:
+  - packagename_shouldbeoptional
+userdata_exports:
+  valuehere_shouldbeoptional: install_packages
+userdata_values:
+  moreagaintoremove: ahhhere
+
+cf_params:
+  dummyShouldbeoptional:
+    name: blah
+    desc: oh yea blah
+    default: blahhh
+out_ports:
+  - 44
+port_map:
+  http: [443, 443]
+
+app_networks:
+  az1: 10.1.0.0/24

@@ -1,0 +1,3 @@
+echo This is userdata run on ec2
+echo This was run in ${AWS::Region}
+echo Example other var ${moreagaintoremove}
