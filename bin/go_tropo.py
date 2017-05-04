@@ -178,6 +178,9 @@ def to_stdout(template):
 
 def stack_exec(stacks, config_file, dry_run = False, force = False, use_params = None):
 
+    bin_path   = os.path.dirname(os.path.abspath(__file__))
+    local_path = os.path.join(bin_path, "..")
+
     ops = create.config.parse(config_file = os.path.realpath(config_file))
     botohandle.set_region(ops.aws_region)
     aws_region    = ops.aws_region
@@ -208,7 +211,7 @@ def stack_exec(stacks, config_file, dry_run = False, force = False, use_params =
             check_lambda_code(
                 s3_bucket   = deploy_bucket,
                 s3_prefix   = deploy_env,
-                lambda_file = "./create_cloudformation/lambdas/mongo_start_stop_lambda.py",
+                lambda_file = os.path.join(local_path,"/lambdas/mongo_start_stop_lambda.py")
             )
 
         if ops.get("s3_triggers"):

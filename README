@@ -1,6 +1,6 @@
 Python package to create cloudformation templates.
 
-Usage: create_cloudformation.py COMMAND config/app/configfile.yaml
+Usage: go-tropo COMMAND config/app/configfile.yaml
 
 install:
 
