@@ -43,7 +43,7 @@ def check_custom_func(deploy_bucket, deploy_env, custom_func_file):
     import os
 
     custom_func_dir = "custom"
-    required_libs = ["lambda_signals", "requests"]
+    required_libs = ["lambda_signals"]
 
     module_path    = os.path.dirname(os.path.abspath(__file__))
     local_path     = os.path.join(module_path, custom_func_dir)
