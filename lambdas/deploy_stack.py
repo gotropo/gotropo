@@ -28,11 +28,20 @@ def handler(event, context):
         print("event:")
         print(event)
 
+    stack_name = app_name+'-'+stack_type
+
     event_info    = process_event(event)
     source_file = path.basename(event_info['source'])
-    cf = boto3.client('cloudformation')
+    cf = boto3.client('cloudformation', region_name = aws_reigon)
+    stack_params = cf.describe_stacks(StackName=stack_name)['Stacks'][0]['Parameters']
+    new_params = []
+    for i in stack_params:
+        if i['ParameterKey'] == cf_set_param:
+            new_params.append({'ParameterKey': cf_set_param, 'ParameterValue': source_file})
+        else:
+            new_params.append({'ParameterKey': cf_set_param, UsePreviousValue: True})
     cf.update_stack(
-        StackName=app_name+'-'+stack_type,
+        StackName=stack_name,
         UsePreviousTemplate=True,
-        Parameters=[{'ParameterKey': cf_set_param, 'ParameterValue': source_file}]
+        Parameters=new_params
     )
