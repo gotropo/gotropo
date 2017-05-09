@@ -206,7 +206,7 @@ def network_stack_template(ops, dry_run):
     #TODO: fix this
     app_sg = create.network.sec_group(template,
         name         = app_cfn_options.network_names['app_sg_name'],
-        in_networks  = [],
+        in_networks  = sorted(elb_nets),
         in_ports     = app_ports,
         out_ports    = ops.out_ports,
         ssh_hosts    = ops.get("deploy_hosts"),
