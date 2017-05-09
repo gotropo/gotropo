@@ -37,9 +37,9 @@ def handler(event, context):
     new_params = []
     for i in stack_params:
         if i['ParameterKey'] == cf_set_param:
-            new_params.append({'ParameterKey': cf_set_param, 'ParameterValue': source_file})
+            new_params.append({'ParameterKey': i['ParameterKey'], 'ParameterValue': source_file})
         else:
-            new_params.append({'ParameterKey': cf_set_param, 'UsePreviousValue': True})
+            new_params.append({'ParameterKey': i['ParameterKey'], 'UsePreviousValue': True})
     cf.update_stack(
         StackName=stack_name,
         UsePreviousTemplate=True,
