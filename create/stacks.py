@@ -150,7 +150,7 @@ def network_stack_template(ops, dry_run):
            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet, igw_id=ops.igw_id)
            export_ref(template, net_name, value = subnet, desc = "Export for elb subnet")
        elb_custom_rules = [(e[0],e[1],"egress") for e in create.network.combine(app_nets, app_ports)]
-       elb_custom_rules.extend(ops.get("custom_elb_rules"))
+       elb_custom_rules.extend(ops.get("custom_elb_rules", []))
        elb_sg = create.network.sec_group(template,
            name         = app_cfn_options.network_names['elb_sg_name'],
            in_networks  = sorted(ops.public_ips),

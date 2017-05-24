@@ -73,7 +73,7 @@ def elb_listener(port, instance_port, ssl_cert, proto="HTTPS", instance_proto="H
     """Create ELB listener
     TODO: Allow HTTP connections without having to provide an SSLCert
     """
-    if proto == "HTTPS":
+    if proto.lower() == "https":
         return elasticloadbalancing.Listener(
            LoadBalancerPort = port,
            InstancePort     = instance_port,
