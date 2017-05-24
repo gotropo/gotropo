@@ -65,14 +65,25 @@ def routetable(template, vpc_id, name, subnet, nat_host_id = None, igw_id = None
             raise ValueError("Office VPN Id given without vpn route")
         if not use_nat:
             raise ValueError("Use of AWS nat servers not compatible with VPN setup")
-        route2 = template.add_resource(
-            troposphere.ec2.Route(
-                name+'route2',
-                GatewayId = vpn_id,
-                DestinationCidrBlock = vpn_route,
-                RouteTableId = Ref(r),
+        if type(vpn_route) is str:
+            route2 = template.add_resource(
+                troposphere.ec2.Route(
+                    name+'route2',
+                    GatewayId = vpn_id,
+                    DestinationCidrBlock = vpn_route,
+                    RouteTableId = Ref(r),
+                )
             )
-        )
+        else:
+            for count,vpn_r in enumerate(vpn_route):
+                template.add_resource(
+                    troposphere.ec2.Route(
+                        name+'vpnroute'+str(count),
+                        GatewayId = vpn_id,
+                        DestinationCidrBlock = vpn_r,
+                        RouteTableId = Ref(r),
+                    )
+                )
     ra = template.add_resource(
         troposphere.ec2.SubnetRouteTableAssociation(
             name+"assoc",

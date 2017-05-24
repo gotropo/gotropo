@@ -43,3 +43,15 @@ def health_check(template, name, fqdn, location="/", port=443, failure_thres = 2
         HealthCheckTags = Tags(Name=name),
     ))
     return health_check
+
+def elb_cname(template, name, elb, subdomain, zone, ttl=300):
+    elb_record = template.add_resource(
+        route53.RecordSetType(
+            name,
+            Type = "CName",
+            Name = subdomain,
+            TTL  = ttl,
+            HostedZoneName = zone,
+            ResourceRecords = GetAtt(elb, "DNSName")
+        )
+    )
