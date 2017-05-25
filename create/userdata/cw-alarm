@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# cw-alarm        Create and Remove CloudWatch Alarm for the instance on startup/shutdown
+#
+# chkconfig: 	  2345 99 20
+# description:    Create and Remove CloudWatch Alarm for the instance on startup/shutdown
+SCR_FILE='/create_disk_alarms.py'
+LOCKFILE=/var/lock/subsys/cw-alarm
+
+if [ ! -f $SRC_FILE ]; then
+	echo "Script file does not exist. Exiting. !!!" 
+	exit
+fi 
+start() {
+	touch $LOCKFILE
+        echo "Creating Alarm: "
+	python /create_disk_alarms.py --create &
+}
+stop() {
+	rm $LOCKFILE
+	echo "Removing Alarm: "
+	python /create_disk_alarms.py --remove &
+}
+status() {
+	echo "Alarm Status: "
+	python /create_disk_alarms.py --status &
+}
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status
+	;;
+  *)
+	echo "Usage: $prog {start|stop|status}"
+esac

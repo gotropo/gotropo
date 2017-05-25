@@ -187,6 +187,7 @@ def app_userdata(ops, app_cfn_options, resource_name):
             install_packages = install_packages,
             cfn_signal       = autoscale_name,
             sub_values       = userdata_vars,
+            enable_cre_disk_alarm = ops.get("enable_disk_alarm", False),
     )
     return userdata
 
@@ -259,7 +260,7 @@ def app_autoscale(template, ops, app_cfn_options, ami_image = None):
         alarm_description = "Alarm for "+name+" appservers high CPU scale up",
         autoscale_grp = Ref(as_grp),
         scaling_policy = Ref(up_scale),
-        threshold = high_cpu_thres,
+        threshold = high_cpu_thres
     )
 
     low_cpu(
@@ -270,6 +271,45 @@ def app_autoscale(template, ops, app_cfn_options, ami_image = None):
         scaling_policy = Ref(down_scale),
         threshold = low_cpu_thres,
     )
+
+    if ops.get("asg_mem_alarm"):
+        template.add_resource(cloudwatch.Alarm(
+            '{}{}'.format("HighMemUsageAlarm",name),
+            AlarmName='{}{}'.format("HighMemUsageAlarm",name),
+            AlarmDescription='{}{}'.format("High Memory Usage for ASG",name),
+            Dimensions=[MetricDimension(
+                Name="AutoScalingGroupName",
+                Value=Ref(as_grp),
+            )],
+            Threshold=str(ops.asg_mem_alarm['threshold_high']),
+            ComparisonOperator=ops.asg_mem_alarm['comp_oper_high'],
+            MetricName="MemUsage",
+            Statistic=ops.asg_mem_alarm['statistic_high'],
+            Period=ops.asg_mem_alarm['period_high'],
+            Namespace="ASG-Custom-Matrix",
+            EvaluationPeriods=ops.asg_mem_alarm['eval_period_high'],
+            AlarmActions=[ops.sns_topic_arn],
+            ActionsEnabled=True
+        ))
+        template.add_resource(cloudwatch.Alarm(
+            '{}{}'.format("LowMemUsageAlarm", name),
+            AlarmName='{}{}'.format("LowMemUsageAlarm", name),
+            AlarmDescription='{}{}'.format("Low Memory Usage for ASG", name),
+            Dimensions=[MetricDimension(
+                Name="AutoScalingGroupName",
+                Value=Ref(as_grp),
+            )],
+            Threshold=str(ops.asg_mem_alarm['threshold_low']),
+            ComparisonOperator=ops.asg_mem_alarm['comp_oper_low'],
+            MetricName="MemUsage",
+            Statistic=ops.asg_mem_alarm['statistic_low'],
+            Period=ops.asg_mem_alarm['period_low'],
+            Namespace="ASG-Custom-Matrix",
+            EvaluationPeriods=ops.asg_mem_alarm['eval_period_low'],
+            AlarmActions=[ops.sns_topic_arn],
+            ActionsEnabled=True
+        ))
+
     if (ops.get("use_shut_scheduled_action")):
             schedule_action_shut(template, name, ops, autoscale_grp = Ref(as_grp))
 
@@ -318,8 +358,6 @@ def cpu_alarm(template, name, alarm_description, autoscale_grp, scaling_policy, 
         Namespace = namespace,
         EvaluationPeriods = eval_periods,
     ))
-
-
 
 def high_cpu(template, name, alarm_description, autoscale_grp, scaling_policy, threshold):
     #TODO: move this to generic cloudwatch alarm function
@@ -465,6 +503,7 @@ def multipart_userdata(
         add_trap_file = True,
         ip_list = None,
         enable_mem_metrics = True,
+        enable_cre_disk_alarm = False,
         env_vars = None):
 
     #TODO: allow multiple pieces to be attached
@@ -621,7 +660,22 @@ def multipart_userdata(
             path = '/send_mem_metrics.py',
             permissions = '0555'
         ))
-        keyappend(cloudconf,"runcmd", 'echo "*/5 * * * * nobody /send_mem_metrics.py" | sudo tee /etc/cron.d/send_mem_metrics')
+        keyappend(cloudconf,"runcmd", 'echo "*/5 * * * * nobody /send_mem_metrics.py" | sudo tee /etc/cron.d/send_mem_metrics;python /send_mem_metrics.py;sleep 30')
+
+    if enable_cre_disk_alarm:
+        put_files.append(dict(
+            content= literal_unicode("".join(read_file(os.path.dirname(os.path.abspath(__file__))+"/userdata/create_disk_alarms.py"))),
+            path = '/create_disk_alarms.py',
+            permissions = '0555'
+        ))
+        keyappend(cloudconf,"runcmd", 'sed -i "s/^\s*alarm_actions=\[.*$/\ \ \ \ alarm_actions=[\\"${SNS_TOPIC_ARN}\\"]/" /create_disk_alarms.py')
+
+        put_files.append(dict(
+            content=literal_unicode("".join(read_file(os.path.dirname(os.path.abspath(__file__)) + "/userdata/cw-alarm"))),
+            path='/etc/init.d/cw-alarm',
+            permissions='0755'
+        ))
+        keyappend(cloudconf, "runcmd",'chkconfig --add /etc/init.d/cw-alarm;service cw-alarm start')
 
     if bash_files:
         if add_trap_file:

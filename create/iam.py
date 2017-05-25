@@ -105,7 +105,7 @@ def ecs_task_role(template, name, role_statement):
 def ami_readonly():
     return awacs.aws.Statement(
             Effect   = awacs.aws.Allow,
-            Action   = [Action("ec2",i) for i in ["DescribeImages","DescribeImageAttribute","DescribeTags"]],
+            Action   = [Action("ec2",i) for i in ["DescribeImages","DescribeImageAttribute","DescribeTags","DescribeInstances"]],
             Resource = ["*"],
         )
 
@@ -238,9 +238,16 @@ def lambda_self_logging(app_name):
 def cloudwatch_metrics():
     return awacs.aws.Statement(
             Effect   = awacs.aws.Allow,
-            Action   = [cloudwatch.PutMetricAlarm, cloudwatch.PutMetricData],
+            Action   = [cloudwatch.PutMetricAlarm, cloudwatch.PutMetricData, cloudwatch.ListMetrics],
             Resource = ["*"]
         )
+
+def cloudwatch_del_alarms():
+    return awacs.aws.Statement(
+        Effect 		= awacs.aws.Allow,
+        Action 		= [cloudwatch.DeleteAlarms],
+        Resource 	= ["*"],
+    )
 
 def ecr_get_auth_token():
     return awacs.aws.Statement(
@@ -378,6 +385,7 @@ def app_role(deploy_bucket, deploy_env, log_group):
     role_statement.append(bucket_permission(deploy_bucket, deploy_env))
     role_statement.append(logwatch_permission(log_group))
     role_statement.append(cloudwatch_metrics())
+    role_statement.append(cloudwatch_del_alarms())
     role_statement.append(ecr_get_auth_token())
     role_statement.append(ami_readonly())
     return role_statement

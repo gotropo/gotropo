@@ -20,16 +20,32 @@ userdata_exports:
   valuehere_shouldbeoptional: install_packages
 userdata_values:
   moreagaintoremove: ahhhere
+  SNS_TOPIC_ARN: *sns_topic_arn
 
+sns_topic_arn:     &sns_topic_arn "arn:aws:sns:ap-southeast-2:111111111111:topicname"
 cf_params:
   dummyShouldbeoptional:
     name: blah
     desc: oh yea blah
     default: blahhh
 out_ports:
-  - 44
+  - 80
+  - 443
 port_map:
   http: [443, 443]
 
 app_networks:
   az1: 10.1.0.0/24
+
+asg_mem_alarm:
+  threshold_high: 60
+  threshold_low : 20
+  comp_oper_high: "GreaterThanOrEqualToThreshold"
+  comp_oper_low:  "LessThanThreshold"
+  statistic_high: "Maximum"
+  statistic_low:  "Minimum"
+  period_high:    60
+  period_low:     60
+  eval_period_high: 1
+  eval_period_low:  1
+enable_disk_alarm: False
