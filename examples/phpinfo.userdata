@@ -1,0 +1,16 @@
+#!/bin/bash -exu
+
+source /trap.sh
+
+deploy_file_s3=${ec2_setup_s3_zipfile}
+deploy_filename=${!deploy_file_s3##*/}
+
+aws s3 cp --region ${AWS::Region} ${!deploy_file_s3} /
+cd /var/www/html
+unzip /${!deploy_filename}
+chmod -R 555 .
+chkconfig httpd on
+service httpd start
+tail -f /var/log/httpd/access_log >>/var/log/cloud-init-output.log &
+tail -f /var/log/httpd/error_log >>/var/log/cloud-init-output.log &
+CODE=$?

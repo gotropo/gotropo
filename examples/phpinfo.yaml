@@ -1,0 +1,65 @@
+app_name: PhpInfo
+billing_id: billingtag
+deploy_bucket: &deploy_bucket deploybuckethere
+elb_bucket: "bucketforelblogs"
+ami_image: ami-162c2575 #amazon linux
+deploy_env: &deploy_env test
+aws_region: ap-southeast-2
+vpc_id: vpc-123
+igw_id: igw-123
+availability_zones:
+  az1: ap-southeast-2a
+  az2: ap-southeast-2b
+nat_host_ids:
+  az1: i-123
+ofc_vpn_id: vgw-123
+vpn_route:
+  - 1.2.3.4/24
+build_ami: false
+cloudwatch_alarm: false
+SSLCert_arn: "arn:aws:iam::1234:server-certificate/certificate-name"
+userdata_file: config/phpinfo.userdata
+install_packages:
+  - httpd
+  - php
+userdata_exports:
+  var_lookup1: app_name
+userdata_values:
+  VAR1: "value1"
+app_prerun:
+  app_setup:
+    var_export: "ec2_setup_s3_zipfile"
+    function: "create.utils.upload_path_to_zip"
+    function_args:
+      s3_bucket:  *deploy_bucket
+      s3_prefix:  !join [*deploy_env,"/app_setup"]
+      local_path: "examples/phpinfo_ec2/"
+
+cf_params:
+  InstanceType:
+    name: InstanceType
+    desc: App server instance types
+    default: "t2.micro"
+  MinScaleCapacity:
+    name: MinScaleCapacity
+    desc: App server autoscale min
+    default: "1"
+  MaxScaleCapacity:
+    name: MaxScaleCapacity
+    desc: App server autoscale max
+    default: "1"
+out_ports:
+  - "80"
+  - "443"
+port_map:
+  HTTPS: ["443", "80"]
+public_ips: [
+  "0.0.0.0/0"
+  ]
+
+elb_networks:
+  az1: 10.1.0.0/28
+  az2: 10.1.0.16/28
+app_networks:
+  az1: 10.1.0.32/28
+  az2: 10.1.0.48/28
