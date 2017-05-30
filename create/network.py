@@ -28,9 +28,9 @@ def subnet(template, vpc_id, name, cidr, az,ops):
         )
     return Ref(sn)
 
-def routetable(template, vpc_id, name, subnet, nat_host_id = None, igw_id = None,
-        vpn_id = None, vpn_route = None, use_nat = True):
-    """Create route table for given subnet. Requres either a NAT host, nat_host_id, or an Internet
+def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
+        vpn_id = None, vpn_route = None, use_nat = True, use_nat_gw = True):
+    """Create route table for given subnet. Requres either a NAT host, nat_id, or an Internet
     Gateway, igw_id. VPN connection optional"""
 
     r = template.add_resource(
@@ -50,20 +50,31 @@ def routetable(template, vpc_id, name, subnet, nat_host_id = None, igw_id = None
         )
     else:
         if use_nat:
-            if not nat_host_id:
+            if not nat_id:
                 raise ValueError("No NAT given and use_nat is true")
             route1 = template.add_resource(
                 troposphere.ec2.Route(
                     name+'route1',
-                    InstanceId = nat_host_id,
+                    InstanceId = nat_id,
                     DestinationCidrBlock = '0.0.0.0/0',
                     RouteTableId = Ref(r),
+                )
+            )
+        if use_nat_gw:
+            if not nat_id:
+                raise ValueError("No NAT given and use_nat is true")
+            route1 = template.add_resource(
+                troposphere.ec2.Route(
+                    name+'route1',
+                    RouteTableId = Ref(r),
+                    DestinationCidrBlock = '0.0.0.0/0',
+                    NatGatewayId = nat_id,
                 )
             )
     if (vpn_id):
         if not vpn_route:
             raise ValueError("Office VPN Id given without vpn route")
-        if not use_nat:
+        if not use_nat and not use_nat_gw:
             raise ValueError("Use of AWS nat servers not compatible with VPN setup")
         if type(vpn_route) is str:
             route2 = template.add_resource(
