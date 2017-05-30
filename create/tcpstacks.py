@@ -89,9 +89,16 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         net_name = app_cfn_options['network_names']['tcpstacks'][stack_name]['subnet_names'][count]
         subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
         stack_subnets[az] = subnet
-        create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
-            nat_host_id = ops.nat_host_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route
+        if ops.use_nat:
+            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
+                nat_id = ops.nat_host_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = True, use_nat_gw = False,
         )
+        if ops.use_nat_gw:
+            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
+                nat_id = ops.nat_gw_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = False, use_nat_gw = True,
+        )
+        if ops.use_nat_gw & ops.use_nat:
+            raise(ValueError,"Both Nat and Nat Gateway Cant be turned On")
 
     nacl = create.network.nacl(template, app_name+stack_name+"Nacl", ops.vpc_id)
     networks_cidrs = [v for k,v in stack_networks.items()]
@@ -180,7 +187,7 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         bdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvda', Ebs = ebs_volume)
         ec2_args = dict(
             ImageId          = ops.ami_image,
-            InstanceType     = "t2.medium" , #TODO: config option
+            InstanceType     = "t2.small" , #TODO: config option
             SubnetId         = subnet,
             IamInstanceProfile = iam_profile,
             Tags             = Tags(
