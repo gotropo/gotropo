@@ -198,14 +198,15 @@ def network_stack_template(ops, dry_run):
         net_name = app_cfn_options.network_names['app_subnet_names'][count]
         subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
         app_subnets.append(subnet)
-        if ops.use_nat:		
+        use_nat = ops.get("use_nat")
+        if use_nat:
             create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
                 nat_id = ops.nat_host_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route,use_nat = True, use_nat_gw = false)
         use_nat_gw = ops.get('use_nat_gw')
         if use_nat_gw:
             create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
                nat_id = ops.nat_gw_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = False, use_nat_gw = True)
-        if ops.use_nat and ops.use_nat_gw:
+        if use_nat and use_nat_gw:
            raise(ValueError,"Both nat and nat_gw are true")
         export_ref(template, net_name, value = subnet, desc = "Export for app subnet")
 
