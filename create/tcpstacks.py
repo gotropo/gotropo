@@ -68,6 +68,9 @@ def create_cloudwatch_alarm(template, instance_id, resource_name, email_topic_ar
 
 def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     app_name = ops.app_name
+    billing_id = ops.billing_id
+    deploy_env = ops.deploy_env
+
     app_nets = [val for key,val in sorted(ops.app_networks.items())]
     nat_networks = ops.get("nat_hosts_sn")
 
@@ -84,23 +87,32 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     stack_sg_name       = app_cfn_options['network_names']['tcpstacks'][stack_name]['sg_name']
     nacl_name           = app_cfn_options['network_names']['tcpstacks'][stack_name]['nacl_name']
 
+    use_nat = ops.get("use_nat")
+    use_nat_gw = ops.get("use_nat_gw")
+    if use_nat and use_nat_gw:
+        raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
+    nat_id = None
+    if use_nat:
+        nat_id = ops.nat_ids[az],
+    if use_nat_gw:
+        nat_id = ops.nat_gw_ids[az],
+
     stack_subnets = dict()
     for count,(az,cidr) in enumerate(sorted(stack_networks.items())):
         net_name = app_cfn_options['network_names']['tcpstacks'][stack_name]['subnet_names'][count]
-        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
         stack_subnets[az] = subnet
-        use_nat = ops.get("use_nat")
-        use_nat_gw = ops.get("use_nat_gw")
-        if use_nat and use_nat_gw:
-            raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
 
-        if use_nat:
-            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
-                nat_id = ops.nat_host_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = True, use_nat_gw = False,
-        )
-        if use_nat_gw:
-            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
-                nat_id = ops.nat_gw_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = False, use_nat_gw = True,
+        create.network.routetable(
+            template,
+            ops.vpc_id,
+            "Route"+net_name,
+            subnet,
+            vpn_id = ops.get("ofc_vpn_id"),
+            nat_id = nat_id,
+            vpn_route = ops.get("vpn_route"),
+            use_nat = ops.get("use_nat"),
+            use_nat_gw = ops.get("use_nat_gw")
         )
 
     nacl = create.network.nacl(template, app_name+stack_name+"Nacl", ops.vpc_id)
@@ -152,14 +164,17 @@ def linux_instance(template, instance_setup):
     billing_id      = instance_setup['billing_id']
     email_topic_arn = instance_setup['email_topic_arn']
     ami_image       = instance_setup['ami_image']
+    subnet          = instance_setup['subnet']
+    sg_name         = instance_setup['sg_name']
+    keyname         = instance_setup.get("KeyName")
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
         instance_size = "t2.medium"
 
-    stack_userdata_file = instance_setup['userdata_file']
+    userdata_file = instance_setup['userdata_file']
     userdata_1 = create.ec2.multipart_userdata(
-        bash_files       = [stack_userdata_file],
+        bash_files       = [userdata_file],
         install_packages = ["docker"],
         sub_values       = instance_setup['userdata_vars'],
         env_vars         = instance_setup.get('environment')
@@ -172,21 +187,19 @@ def linux_instance(template, instance_setup):
         InstanceType     = instance_size,
         SubnetId         = subnet,
         IamInstanceProfile = iam_profile,
+        KeyName          = keyname,
         Tags             = Tags(
              Name = resource_name,
              Env = deploy_env,
              BillingID = billing_id
         ),
-        SecurityGroupIds = [GetAtt(stack_network_info['stack_sg_name'],"GroupId")],
+        SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
         BlockDeviceMappings = [bdm],
         UserData         = userdata_1,
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
         )
     )
-
-    if app_cfn_options.cf_params.get('KeyName'):
-        ec2_args['KeyName'] = app_cfn_options.cf_params.get('KeyName')
 
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
@@ -203,15 +216,49 @@ def windows_instance(template, instance_setup):
     deploy_env    = instance_setup['deploy_env']
     billing_id    = instance_setup['billing_id']
     ami_image     = instance_setup['ami_image']
+    userdata_vars = instance_setup['userdata_vars']
+    subnet        = instance_setup['subnet']
+    sg_name       = instance_setup['sg_name']
+    keyname       = instance_setup.get("KeyName")
+
+    userdata_files = instance_setup['userdata_file']
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
         instance_size = "t2.medium"
 
     userdata = create.ec2.windows_userdata(
-        powershell_files = instance_setup['userdata_file'],
+        powershell_files = userdata_files,
         sub_values = instance_setup['userdata_vars'],
     )
+
+    iam_profile = None  #TODO
+
+    ec2_args = dict(
+        ImageId          = ami_image,
+        InstanceType     = instance_size,
+        SubnetId         = subnet,
+        KeyName          = keyname,
+        #IamInstanceProfile = iam_profile,
+        Tags             = Tags(
+             Name = resource_name,
+             Env = deploy_env,
+             BillingID = billing_id
+        ),
+        SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
+        #BlockDeviceMappings = [bdm],
+        UserData         = userdata,
+        CreationPolicy   = CreationPolicy(
+            ResourceSignal = ResourceSignal(Timeout = "PT100M")
+        )
+    )
+
+
+    ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
+    if instance_setup.get('build_serial') and instance_setup['previous_instance']:
+        stack_instance = template.add_resource(ec2_instance_func(DependsOn = previous_instance))
+    else:
+        stack_instance = template.add_resource(ec2_instance_func())
 
 def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
@@ -230,7 +277,6 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
     iam_profile = ImportValue(app_cfn_options.resource_names['ec2_iam_profile'])
     userdata_vars = {k:ops.get(v) for k,v in ops.userdata_exports.items()}
     cf_param_refs = {k:v for k,v in app_cfn_options.cf_params.items()}
-    userdata_vars = {k:ops.get(v) for k,v in ops.userdata_exports.items()}
     if stack_setup.get("environment"):
         update_dict(userdata_vars, stack_setup.get("environment"))
     if stack_setup.get("prerun"):
@@ -252,20 +298,23 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
     previous_instance = None
     for instance, instance_setup in stack_setup['instances'].items():
         az = instance_setup['az']
-        subnet = stack_network_info['stack_subnets'][az]
         userdata_vars_copy = userdata_vars.copy()
         update_dict(userdata_vars_copy, instance_setup.get('environment'))
         resource_name = "".join([stack_resource_name, instance, az])
         userdata_vars_copy['resource_name'] = resource_name
+        if app_cfn_options.cf_params.get('KeyName'):
+            instance_setup['KeyName'] = app_cfn_options.cf_params.get('KeyName')
 
-        instance_setup['resource_name'] = resource_name
-        instance_setup['deploy_env'] = stack_setup['deploy_env']
-        instance_setup['billing_id'] = stack_setup['billing_id']
-        instance_setup['ami_image'] = stack_setup['ami_image']
-        instance_setup['subnet'] = subnet
-        instance_setup['previous_instance'] = previous_instance
-        instance_setup['userdata_vars'] = userdata_vars_copy
+        instance_setup['resource_name']   = resource_name
+        instance_setup['deploy_env']      = stack_setup['deploy_env']
+        instance_setup['billing_id']      = stack_setup['billing_id']
+        instance_setup['ami_image']       = stack_setup['ami_image']
+        instance_setup['subnet']          = stack_network_info['stack_subnets'][az]
+        instance_setup['userdata_vars']   = userdata_vars_copy
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
+        instance_setup['sg_name']         = stack_network_info['stack_sg_name']
+
+        instance_setup['previous_instance'] = previous_instance
 
         instance_create(template, instance_setup)
 
