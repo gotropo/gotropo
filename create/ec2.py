@@ -17,6 +17,22 @@ from troposphere import ec2
 from collections import OrderedDict
 import os
 from .utils import update_dict
+import yaml
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+def keyappend(ob, key, value):
+    v = ob.get(key)
+    if v:
+        v.append(value)
+    else:
+        ob[key] = [value]
+
+def add_cloudconf(msg, name, clcfg):
+    cfg = yaml.dump(clcfg, default_flow_style=False)
+    message_part = MIMEText(cfg,"cloud-config",'us-ascii')
+    message_part.add_header('Content-Disposition','attachment; filename='+name)
+    msg.attach(message_part)
 
 def find_cloudfront_sec_group(region):
     ec2 = boto3.client("ec2", region_name = region)
@@ -489,9 +505,44 @@ def read_file(f):
 
                 contents.append(line)
     except IOError:
-        raise IOError('Error opening or reading file: {}'.format(script_file))
+        raise IOError('Error opening or reading file: {}'.format(f))
     return contents
 
+def windows_userdata(
+        powershell_files = None,
+        sub_values = None):
+    #TODO: move this. Potentially make multipart userdata Class. From here -->
+    class folded_unicode(str): pass
+    class literal_unicode(str): pass
+
+    def folded_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    def literal_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+    reserved_sub_values = ['cfn_signal']
+
+    if sub_values:
+        for i in reserved_sub_values:
+            if sub_values.get(i):
+                raise("Reserved substitution value used in userdata:" + i)
+        svals = sub_values.copy()
+    else:
+        svals = {}
+    #--> to here
+
+    yaml.add_representer(folded_unicode, folded_unicode_representer)
+    yaml.add_representer(literal_unicode, literal_unicode_representer)
+
+    messages = MIMEMultipart()
+    cloudconf = dict()
+    put_file = []
+    for b in powershell_files:
+        put_file.extend(read_file(b))
+    cloudconf["script"] = literal_unicode("".join(put_file))
+    if len(cloudconf) > 0:
+        add_cloudconf(messages, "cloudconf.txt", cloudconf)
+    cloudconf_userdata = "".join(["#cloud-config","\n",str(yaml.dump(cloudconf))])
+    return Base64(Sub(cloudconf_userdata, **svals))
 
 
 def multipart_userdata(
@@ -506,9 +557,6 @@ def multipart_userdata(
         enable_cre_disk_alarm = False,
         env_vars = None):
 
-    #TODO: allow multiple pieces to be attached
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
     #TODO: move this. Potentially make multipart userdata Class. From here -->
     import yaml
     class folded_unicode(str): pass
@@ -582,18 +630,6 @@ def multipart_userdata(
     else:
         svals = {}
 
-    def add_cloudconf(msg, name, clcfg):
-        cfg = yaml.dump(clcfg, default_flow_style=False)
-        message_part = MIMEText(cfg,"cloud-config",'us-ascii')
-        message_part.add_header('Content-Disposition','attachment; filename='+name)
-        msg.attach(message_part)
-
-    def keyappend(ob, key, value):
-        v = ob.get(key)
-        if v:
-            v.append(value)
-        else:
-            ob[key] = [value]
 
     messages = MIMEMultipart()
     cloudconf = dict()
@@ -692,6 +728,7 @@ def multipart_userdata(
             ))
             keyappend(cloudconf,"runcmd", script_filename)
 
+    messages = MIMEMultipart()
     if len(put_files) > 0:
         cloudconf.update(dict(write_files = put_files))
     if len(cloudconf) > 0:

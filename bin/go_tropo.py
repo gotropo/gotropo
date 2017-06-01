@@ -70,6 +70,7 @@ def get_available_stacks():
     available_stacks['mongodb'] = stack_call(create_func = tcp_stack_template, options = dict(Capabilities = ["CAPABILITY_IAM"]))
     available_stacks['rds']     = stack_call(create_func = tcp_stack_template)
     available_stacks['ec2']     = stack_call(create_func = tcp_stack_template)
+    available_stacks['ec2_windows'] = stack_call(create_func = tcp_stack_template)
     return available_stacks
 
 

@@ -12,7 +12,7 @@ def combine(networks, ports):
             return_list.append(net_port)
     return return_list
 
-def subnet(template, vpc_id, name, cidr, az,ops):
+def subnet(template, vpc_id, name, cidr, az, billing_id, deploy_env):
     sn = template.add_resource(
         troposphere.ec2.Subnet(
             name,
@@ -21,8 +21,8 @@ def subnet(template, vpc_id, name, cidr, az,ops):
             AvailabilityZone=az,
             Tags = Tags(
                 Name = name,
-                BillingID = ops.billing_id,
-                Env = ops.deploy_env
+                BillingID = billing_id,
+                Env = deploy_env
             ),
           )
         )
@@ -55,9 +55,9 @@ def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
             route1 = template.add_resource(
                 troposphere.ec2.Route(
                     name+'route1',
-                    InstanceId = nat_id,
-                    DestinationCidrBlock = '0.0.0.0/0',
                     RouteTableId = Ref(r),
+                    DestinationCidrBlock = '0.0.0.0/0',
+                    InstanceId = nat_id,
                 )
             )
         if use_nat_gw:
@@ -71,11 +71,9 @@ def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
                     NatGatewayId = nat_id,
                 )
             )
-    if (vpn_id):
+    if vpn_id:
         if not vpn_route:
             raise ValueError("Office VPN Id given without vpn route")
-        if not use_nat and not use_nat_gw:
-            raise ValueError("Use of AWS nat servers not compatible with VPN setup")
         if type(vpn_route) is str:
             route2 = template.add_resource(
                 troposphere.ec2.Route(

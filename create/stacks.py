@@ -131,6 +131,8 @@ def resources_stack_template(ops, dry_run):
 def network_stack_template(ops, dry_run):
     app_name   = ops.app_name
     aws_region = ops.aws_region
+    billing_id = ops.billing_id
+    deploy_env = ops.deploy_env
     template = create_template(app_name, "Network")
     app_cfn_options = create.config.ConfigOptions()
     app_cfn_options.network_names = create_network_names(ops)
@@ -145,7 +147,7 @@ def network_stack_template(ops, dry_run):
        elb_subnet = []
        for count,(az,cidr) in enumerate(sorted(ops.elb_networks.items())):
            net_name = app_cfn_options.network_names['elb_subnet_names'][count]
-           subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+           subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
            elb_subnet.append(subnet)
            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet, igw_id=ops.igw_id)
            export_ref(template, net_name, value = subnet, desc = "Export for elb subnet")
@@ -196,18 +198,32 @@ def network_stack_template(ops, dry_run):
     app_subnets = []
     for count,(az,cidr) in enumerate(sorted(ops.app_networks.items())):
         net_name = app_cfn_options.network_names['app_subnet_names'][count]
-        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
         app_subnets.append(subnet)
         use_nat = ops.get("use_nat")
+        use_nat_gw = ops.get("use_nat_gw")
+        if use_nat and use_nat_gw:
+            raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
+        nat_id = None
         if use_nat:
-            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
-                nat_id = ops.nat_host_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route,use_nat = True, use_nat_gw = false)
-        use_nat_gw = ops.get('use_nat_gw')
+            nat_id = ops.nat_ids[az],
         if use_nat_gw:
-            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet,
-               nat_id = ops.nat_gw_ids[az], vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route, use_nat = False, use_nat_gw = True)
+            nat_id = ops.nat_gw_ids[az],
         if use_nat and use_nat_gw:
            raise(ValueError,"Both nat and nat_gw are true")
+
+        create.network.routetable(
+            template,
+            ops.vpc_id,
+            "Route"+net_name,
+            subnet,
+            vpn_id = ops.get("ofc_vpn_id"),
+            nat_id = nat_id,
+            vpn_route = ops.get("vpn_route"),
+            use_nat = ops.get("use_nat"),
+            use_nat_gw = ops.get("use_nat_gw")
+        )
+
         export_ref(template, net_name, value = subnet, desc = "Export for app subnet")
 
 
@@ -250,6 +266,8 @@ def network_stack_template(ops, dry_run):
             nacl = ImportValue(stack_nacl_name)
 
             create.network.acl_add_networks(template, stack_nacl_name, nacl, app_nets, start_rule=1000) #TODO: describe nacl to find value for start_rule
+            tcpstack_networks = [n for az, n in service_setup['networks'].items()]
+            create.network.acl_add_networks(template, app_cfn_options.network_names['app_nacl_name']+service, app_nacl_factory.nacl, tcpstack_networks, start_rule=1000)
 
     if ops.get("external_services"):
         create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ops.external_services)
@@ -327,6 +345,7 @@ def tcp_stack_template(ops, stack_name, stack_setup, dry_run):
         mongodb = create.mongo.mongo_stack,
         rds     = create.rds.rds_setup,
         ec2     = create.tcpstacks.create_ec2_stack,
+        ec2_windows = create.tcpstacks.create_ec2_stack,
     )
 
     template = create_template(ops.app_name, stack_name)
