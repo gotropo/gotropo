@@ -131,6 +131,8 @@ def resources_stack_template(ops, dry_run):
 def network_stack_template(ops, dry_run):
     app_name   = ops.app_name
     aws_region = ops.aws_region
+    billing_id = ops.billing_id
+    deploy_env = ops.deploy_env
     template = create_template(app_name, "Network")
     app_cfn_options = create.config.ConfigOptions()
     app_cfn_options.network_names = create_network_names(ops)
@@ -145,7 +147,7 @@ def network_stack_template(ops, dry_run):
        elb_subnet = []
        for count,(az,cidr) in enumerate(sorted(ops.elb_networks.items())):
            net_name = app_cfn_options.network_names['elb_subnet_names'][count]
-           subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+           subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
            elb_subnet.append(subnet)
            create.network.routetable(template, ops.vpc_id, "Route"+net_name, subnet, igw_id=ops.igw_id)
            export_ref(template, net_name, value = subnet, desc = "Export for elb subnet")
@@ -196,7 +198,7 @@ def network_stack_template(ops, dry_run):
     app_subnets = []
     for count,(az,cidr) in enumerate(sorted(ops.app_networks.items())):
         net_name = app_cfn_options.network_names['app_subnet_names'][count]
-        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+        subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
         app_subnets.append(subnet)
         use_nat = ops.get("use_nat")
         if use_nat:
