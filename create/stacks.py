@@ -266,6 +266,8 @@ def network_stack_template(ops, dry_run):
             nacl = ImportValue(stack_nacl_name)
 
             create.network.acl_add_networks(template, stack_nacl_name, nacl, app_nets, start_rule=1000) #TODO: describe nacl to find value for start_rule
+            tcpstack_networks = [n for az, n in service_setup['networks'].items()]
+            create.network.acl_add_networks(template, app_cfn_options.network_names['app_nacl_name']+service, app_nacl_factory.nacl, tcpstack_networks, start_rule=1000)
 
     if ops.get("external_services"):
         create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ops.external_services)
