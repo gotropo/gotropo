@@ -327,6 +327,7 @@ def tcp_stack_template(ops, stack_name, stack_setup, dry_run):
         mongodb = create.mongo.mongo_stack,
         rds     = create.rds.rds_setup,
         ec2     = create.tcpstacks.create_ec2_stack,
+        ec2_windows = create.tcpstacks.create_ec2_stack,
     )
 
     template = create_template(ops.app_name, stack_name)

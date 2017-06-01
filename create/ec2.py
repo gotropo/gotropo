@@ -492,6 +492,38 @@ def read_file(f):
         raise IOError('Error opening or reading file: {}'.format(script_file))
     return contents
 
+def windows_userdata(
+        powershell_files = None,
+        sub_values = None):
+    #TODO: allow multiple pieces to be attached
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    #TODO: move this. Potentially make multipart userdata Class. From here -->
+    import yaml
+    class folded_unicode(str): pass
+    class literal_unicode(str): pass
+
+    def folded_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    def literal_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+    reserved_sub_values = ['cfn_signal']
+
+    if sub_values:
+        for i in reserved_sub_values:
+            if sub_values.get(i):
+                raise("Reserved substitution value used in userdata:" + i)
+        svals = sub_values.copy()
+    else:
+        svals = {}
+    #--> to here
+
+    yaml.add_representer(folded_unicode, folded_unicode_representer)
+    yaml.add_representer(literal_unicode, literal_unicode_representer)
+    cloudconf = dict()
+    cloudconf['test'] = 'blah'
+    cloudconf_userdata = "".join(["#cloud-config","\n",str(yaml.dump(cloudconf))])
+    return Base64(Sub(cloudconf_userdata, **svals))
 
 
 def multipart_userdata(
