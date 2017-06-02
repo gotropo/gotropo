@@ -209,36 +209,7 @@ def acl_add_networks(template, name, nacl, networks, start_rule = 100):
                     RuleAction   = "Allow"
                 )
             )
-    rulename = 'InRule'
-    rule_number = rule_number + 10
-    template.add_resource(
-       troposphere.ec2.NetworkAclEntry(
-            name+rulename+str(rule_number),
-            NetworkAclId = nacl,
-            RuleNumber   = rule_number,
-            Protocol     = '6',
-            PortRange    = troposphere.ec2.PortRange(From=1024, To=65535),
-            CidrBlock    = '0.0.0.0/0',
-            Egress       = False,
-            RuleAction   = "Allow"
-        )
-    )
-    rulename = 'OutRule'
-    default_out_ports = [80, 443]
-    for port in default_out_ports:
-        rule_number = rule_number + 10
-        template.add_resource(
-            troposphere.ec2.NetworkAclEntry(
-                name+rulename+str(rule_number),
-                NetworkAclId = nacl,
-                RuleNumber   = rule_number,
-                Protocol     = '6',
-                PortRange    = troposphere.ec2.PortRange(From=port, To=port),
-                CidrBlock    = '0.0.0.0/0',
-                Egress       = True,
-                RuleAction   = "Allow"
-            )
-        )
+    return start_rule + count*10
 
 #TODO doesn't seem the best to have this class add to CF template directly, consider alternatives
 class AclFactory(object):
@@ -269,7 +240,8 @@ class AclFactory(object):
         self.create_ephemeral_rules()
 
     def create_nacl(self):
-        nacl = self.template.add_resource(
+        template = self.template
+        nacl = template.add_resource(
             troposphere.ec2.NetworkAcl(
                 self.name,
                 VpcId = self.vpc_id,
@@ -279,6 +251,38 @@ class AclFactory(object):
             )
         )
         self.nacl = Ref(nacl)
+
+        rulenumber = 50
+        rulename = 'InRule'
+        rule_number = rule_number + 10
+        template.add_resource(
+           troposphere.ec2.NetworkAclEntry(
+                name+rulename+str(rule_number),
+                NetworkAclId = nacl,
+                RuleNumber   = rule_number,
+                Protocol     = '6',
+                PortRange    = troposphere.ec2.PortRange(From=1024, To=65535),
+                CidrBlock    = '0.0.0.0/0',
+                Egress       = False,
+                RuleAction   = "Allow"
+            )
+        )
+        rulename = 'OutRule'
+        default_out_ports = [80, 443]
+        for port in default_out_ports:
+            rule_number = rule_number + 10
+            template.add_resource(
+                troposphere.ec2.NetworkAclEntry(
+                    name+rulename+str(rule_number),
+                    NetworkAclId = nacl,
+                    RuleNumber   = rule_number,
+                    Protocol     = '6',
+                    PortRange    = troposphere.ec2.PortRange(From=port, To=port),
+                    CidrBlock    = '0.0.0.0/0',
+                    Egress       = True,
+                    RuleAction   = "Allow"
+                )
+            )
 
 
     def add_nacl_rule(self, network, port, to_port=None, egress='false'):

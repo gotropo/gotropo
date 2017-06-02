@@ -253,6 +253,7 @@ def network_stack_template(ops, dry_run):
         assoc_name = "AppAclAssoc"+str(count)
         create.network.assoc_nacl_subnet(template, assoc_name, app_nacl_factory.nacl, subnet)
 
+    last_rule_number = 1000
     for service,service_setup in ops.get("tcpstacks",{}).items():
         if service_setup['enabled']:
             stack_name =  service
@@ -265,7 +266,8 @@ def network_stack_template(ops, dry_run):
             stack_nacl_name = app_cfn_options['network_names']['tcpstacks'][service]['nacl_name']
             nacl = ImportValue(stack_nacl_name)
 
-            create.network.acl_add_networks(template, stack_nacl_name, nacl, app_nets, start_rule=1000) #TODO: describe nacl to find value for start_rule
+            last_rule_number = create.network.acl_add_networks(template, stack_nacl_name, nacl, app_nets, start_rule=last_rule_number) #TODO: describe nacl to find value for start_rule
+            last_rule_number += 10
             tcpstack_networks = [n for az, n in service_setup['networks'].items()]
             create.network.acl_add_networks(template, app_cfn_options.network_names['app_nacl_name']+service, app_nacl_factory.nacl, tcpstack_networks, start_rule=1000)
 
