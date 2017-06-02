@@ -542,7 +542,7 @@ def windows_userdata(
     cloudconf["script"] = literal_unicode("".join(put_file))
     if len(cloudconf) > 0:
         add_cloudconf(messages, "cloudconf.txt", cloudconf)
-    cloudconf_userdata = "".join(["#cloud-config","\n",str(yaml.dump(cloudconf))])
+    cloudconf_userdata = "".join(["#cloud-config","\n<powershell>\n",str(yaml.dump(cloudconf)),"</powershell>"])
     return Base64(Sub(cloudconf_userdata, **svals))
 
 

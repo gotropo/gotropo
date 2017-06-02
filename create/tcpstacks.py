@@ -285,6 +285,8 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     iam_profile = ImportValue(app_cfn_options.resource_names['ec2_iam_profile'])
     userdata_vars = {k:ops.get(v) for k,v in ops.userdata_exports.items()}
+    if ops.get("userdata_values"):
+        userdata_vars.update(ops.get("userdata_values"))
     cf_param_refs = {k:v for k,v in app_cfn_options.cf_params.items()}
     if stack_setup.get("environment"):
         update_dict(userdata_vars, stack_setup.get("environment"))
