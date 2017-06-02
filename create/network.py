@@ -241,6 +241,7 @@ class AclFactory(object):
 
     def create_nacl(self):
         template = self.template
+        name = self.name
         nacl = template.add_resource(
             troposphere.ec2.NetworkAcl(
                 self.name,
@@ -252,13 +253,13 @@ class AclFactory(object):
         )
         self.nacl = Ref(nacl)
 
-        rulenumber = 50
+        rule_number = 50
         rulename = 'InRule'
         rule_number = rule_number + 10
         template.add_resource(
            troposphere.ec2.NetworkAclEntry(
                 name+rulename+str(rule_number),
-                NetworkAclId = nacl,
+                NetworkAclId = Ref(nacl),
                 RuleNumber   = rule_number,
                 Protocol     = '6',
                 PortRange    = troposphere.ec2.PortRange(From=1024, To=65535),
@@ -274,7 +275,7 @@ class AclFactory(object):
             template.add_resource(
                 troposphere.ec2.NetworkAclEntry(
                     name+rulename+str(rule_number),
-                    NetworkAclId = nacl,
+                    NetworkAclId = Ref(nacl),
                     RuleNumber   = rule_number,
                     Protocol     = '6',
                     PortRange    = troposphere.ec2.PortRange(From=port, To=port),

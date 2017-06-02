@@ -21,6 +21,7 @@ import create.mongo
 import create.rds
 import create.tcpstacks
 from .utils import update_dict
+import create.efs
 
 def create_template(app_name, stack_type):
     template = Template()
@@ -186,6 +187,7 @@ def network_stack_template(ops, dry_run):
                out_ports    = ops.out_ports,
                out_networks = elb_app_networks,
            )
+
            for count,subnet in enumerate(elb_subnet):
                assoc_name = "ElbAclAssoc"+str(count)
                create.network.assoc_nacl_subnet(template, assoc_name, elb_nacl_factory.nacl, subnet)
@@ -206,12 +208,11 @@ def network_stack_template(ops, dry_run):
             raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
         nat_id = None
         if use_nat:
-            nat_id = ops.nat_ids[az],
+            nat_id = ops.nat_ids[az]
         if use_nat_gw:
-            nat_id = ops.nat_gw_ids[az],
+            nat_id = ops.nat_gw_ids[az]
         if use_nat and use_nat_gw:
            raise(ValueError,"Both nat and nat_gw are true")
-
         create.network.routetable(
             template,
             ops.vpc_id,
@@ -291,12 +292,15 @@ def app_stack_template(ops, dry_run):
     internal_ports = [val[1] for val in ops.port_map.values()]
 
     app_cfn_options = cfn_options_setup(template, ops)
+    app_cfn_options.userdata_objects = dict()
 
     app_cfn_options.app_ec2_name  = app_name+"App"
     app_cfn_options.app_subnets             = [import_ref(s) for s in app_cfn_options.network_names['app_subnet_names']]
     app_cfn_options.app_sg                  = import_ref(app_cfn_options.network_names['app_sg_name'])
     app_cfn_options.iam_profile             = import_ref(app_cfn_options.resource_names['ec2_iam_profile'])
-
+    for stack_name,stack_values in ops.tcpstacks.items():
+        if stack_values['stack_type'] == 'efs':
+             app_cfn_options.userdata_objects[stack_name] = { "Fn::Join" : [ ".", [ import_ref('owncloudtestEFSEndpoint'), "efs", ops.aws_region, "amazonaws.com" ] ] }
     app_cfn_options.autoscale_name     = app_name+"Autoscale"
     app_cfn_options.launch_config_name = app_name+"LaunchConfig"
 
@@ -348,6 +352,7 @@ def tcp_stack_template(ops, stack_name, stack_setup, dry_run):
         rds     = create.rds.rds_setup,
         ec2     = create.tcpstacks.create_ec2_stack,
         ec2_windows = create.tcpstacks.create_ec2_stack,
+        efs = create.efs.efs_setup,
     )
 
     template = create_template(ops.app_name, stack_name)
@@ -421,3 +426,4 @@ def build_stack_template(ops, dry_run):
         )
     )
     return template
+

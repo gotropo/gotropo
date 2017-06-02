@@ -87,18 +87,27 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     stack_sg_name       = app_cfn_options['network_names']['tcpstacks'][stack_name]['sg_name']
     nacl_name           = app_cfn_options['network_names']['tcpstacks'][stack_name]['nacl_name']
 
+
     use_nat = ops.get("use_nat")
     use_nat_gw = ops.get("use_nat_gw")
+
     if use_nat and use_nat_gw:
         raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
     nat_id = None
-    if use_nat:
-        nat_id = ops.nat_ids[az],
-    if use_nat_gw:
-        nat_id = ops.nat_gw_ids[az],
+    '''
+        if use_nat:
+            nat_id = ops.nat_ids[az]
+        if use_nat_gw:
+            nat_id = ops.nat_gw_ids[az]
+    '''
 
     stack_subnets = dict()
+
     for count,(az,cidr) in enumerate(sorted(stack_networks.items())):
+        if use_nat:
+            nat_id = ops.nat_ids[az]
+        if use_nat_gw:
+            nat_id = ops.nat_gw_ids[az]
         net_name = app_cfn_options['network_names']['tcpstacks'][stack_name]['subnet_names'][count]
         subnet   = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az], billing_id, deploy_env)
         stack_subnets[az] = subnet
