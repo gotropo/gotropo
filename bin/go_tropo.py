@@ -73,7 +73,6 @@ def get_available_stacks():
     available_stacks['ec2_windows'] = stack_call(create_func = tcp_stack_template)
     available_stacks['efs'] = stack_call(create_func=tcp_stack_template)
 
->>>>>>> 0979ffa9e07610a65207fe2442ec1ba0de09e6fc
     return available_stacks
 
 
