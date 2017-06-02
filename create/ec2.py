@@ -144,6 +144,8 @@ def userdata_exports(ops, app_cfn_options):
     cf_param_refs = {k:v for k,v in app_cfn_options.cf_params.items()}
     userdata_vars = {k:ops.get(v) for k,v in ops.userdata_exports.items()}
     userdata_vars.update(ops.get("userdata_values"))
+###################################################
+    userdata_vars.update(app_cfn_options.userdata_objects)
     return userdata_vars
 
 def app_userdata(ops, app_cfn_options, resource_name):
