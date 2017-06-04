@@ -70,7 +70,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Subnets          = elb_subnet,
         HealthCheck      = elasticloadbalancing.HealthCheck(**healthcheck_settings),
         AccessLoggingPolicy    = elasticloadbalancing.AccessLoggingPolicy( Enabled = True,
-                                                S3BucketName    = ops.elb_bucket,
+                                                S3BucketName    = ops['elb']['bucket'],
                                                 S3BucketPrefix  = elb_bucket_prefix,
                                             ),
         # Enable ConnectionDrainingPolicy
@@ -81,7 +81,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Listeners = [elb_listener(port = value[0], instance_port = value[1], ssl_cert = ssl_cert, proto=proto) for proto, value in port_map.items()],
         CrossZone = True,
         SecurityGroups = sec_grp_list,
-        Scheme         = "internet-facing",
+        Scheme         = ops['elb']['scheme'],
     ))
     return Ref(elastic_elb)
 
