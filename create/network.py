@@ -103,7 +103,8 @@ def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
 
 def sg_rule(net, port):
     if isinstance(port, int):
-        port_num = port
+        port_num1 = port
+        port_num2 = port
         proto = "tcp"
     else:
         if "/" in port:
@@ -111,18 +112,23 @@ def sg_rule(net, port):
         else: #TODO: this shouldn't be here twice
             port_num = port
             proto = "tcp"
+        if ":" in port_num:
+            port_num1, port_num2= port_num.split(':')
+        else:
+            port_num1 = port_num
+            port_num2 = port_num
     if net[0:2] == "sg":
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port_num,
-            ToPort     = port_num,
+            FromPort   = port_num1,
+            ToPort     = port_num2,
             SourceSecurityGroupId = net
         )
     else:
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port_num,
-            ToPort     = port_num,
+            FromPort   = port_num1,
+            ToPort     = port_num2,
             CidrIp     = net
         )
     return sg_r
@@ -138,6 +144,7 @@ def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rule
     if ssh_hosts:
         for dhost in sorted(ssh_hosts):
             ingress_rules.append(sg_rule(dhost, 22))
+            ingress_rules.append(sg_rule(dhost, 3389))
     egress_rules = [sg_rule('0.0.0.0/0', out_port) for out_port in sorted(out_ports)]
 
     for dp in default_out_ports:

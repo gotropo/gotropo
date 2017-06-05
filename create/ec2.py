@@ -14,6 +14,7 @@ from troposphere import GetAtt
 from troposphere import Base64
 from troposphere import Ref
 from troposphere import ec2
+from troposphere import cloudformation
 from collections import OrderedDict
 import os
 from .utils import update_dict
@@ -509,6 +510,46 @@ def read_file(f):
         raise IOError('Error opening or reading file: {}'.format(f))
     return contents
 
+def windows_cloudinit(
+        powershell_files = None,
+        sub_values = None):
+    #TODO: move this. Potentially make multipart userdata Class. From here -->
+    class folded_unicode(str): pass
+    class literal_unicode(str): pass
+
+    def folded_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    def literal_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+    reserved_sub_values = ['cfn_signal']
+
+    if sub_values:
+        for i in reserved_sub_values:
+            if sub_values.get(i):
+                raise("Reserved substitution value used in userdata:" + i)
+        svals = sub_values.copy()
+    else:
+        svals = {}
+    #--> to here
+
+    def get_cmds(powershell_files):
+        for f in powershell_files:
+            with open(f, 'r') as fh:
+                for line in fh:
+                    if line.strip('\n\r ') == '':
+                        continue
+                    if line[0] == "#":
+                        continue
+                    yield line.strip('\n\r')
+
+
+    metadata = cloudformation.Metadata(
+        cloudformation.InitConfig(
+            commands = { count:dict(command=Sub(cmd, **svals)) for count,cmd in enumerate(get_cmds(powershell_files)) }
+        )
+    )
+    return metadata
+
 def windows_userdata(
         powershell_files = None,
         sub_values = None):
@@ -536,13 +577,14 @@ def windows_userdata(
 
     messages = MIMEMultipart()
     cloudconf = dict()
-    put_file = []
+    put_file = ["<powershell>\n"]
     for b in powershell_files:
         put_file.extend(read_file(b))
+    put_file.append("\n</powershell>")
     cloudconf["script"] = literal_unicode("".join(put_file))
     if len(cloudconf) > 0:
         add_cloudconf(messages, "cloudconf.txt", cloudconf)
-    cloudconf_userdata = "".join(["#cloud-config","\n<powershell>\n",str(yaml.dump(cloudconf)),"</powershell>"])
+    cloudconf_userdata = "".join(["#cloud-config","\n",str(yaml.dump(cloudconf))])
     return Base64(Sub(cloudconf_userdata, **svals))
 
 
