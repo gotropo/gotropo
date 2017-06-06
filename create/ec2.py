@@ -533,23 +533,20 @@ def windows_cloudinit(
         svals = {}
     #--> to here
 
-    def get_cmds(powershell_files):
-        for f in powershell_files:
-            with open(f, 'r') as fh:
-                for line in fh:
-                    if line.strip('\n\r ') == '':
-                        continue
-                    if line[0] == "#":
-                        continue
-                    yield line.strip('\n\r')
 
+    cfn_files = {}
+    cmds      = {}
+
+    for count,psf in enumerate(powershell_files):
+        cfn_file_key = "C:\\cfn\\scripts\\"+os.path.basename(psf)
+        cfn_file_contents = read_file(psf)
+        cfn_files[cfn_file_key] = dict(content=cfn_file_contents)
+        cmds[count] = dict(command="powershell.exe -Command "+cfn_file_key)
 
     metadata = cloudformation.Metadata(
         cloudformation.Init(
             cloudformation.InitConfigSets(config1=["initconfig1"]),
-            initconfig1=cloudformation.InitConfig(
-                commands = { count:dict(command=Sub(cmd, **svals)) for count,cmd in enumerate(get_cmds(powershell_files)) }
-            )
+            initconfig1=cloudformation.InitConfig( files=cfn_files, commands=cmds)
         )
     )
     return metadata
