@@ -544,8 +544,11 @@ def windows_cloudinit(
 
 
     metadata = cloudformation.Metadata(
-        cloudformation.InitConfig(
-            commands = { count:dict(command=Sub(cmd, **svals)) for count,cmd in enumerate(get_cmds(powershell_files)) }
+        cloudformation.Init(
+            cloudformation.InitConfigSets(config1=["initconfig1"]),
+            initconfig1=cloudformation.InitConfig(
+                commands = { count:dict(command=Sub(cmd, **svals)) for count,cmd in enumerate(get_cmds(powershell_files)) }
+            )
         )
     )
     return metadata

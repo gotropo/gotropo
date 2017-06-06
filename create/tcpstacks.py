@@ -258,8 +258,8 @@ def windows_instance(template, instance_setup):
         ),
         SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
         #BlockDeviceMappings = [bdm],
-        Metadata = userdata,
-        UserData         = Base64(Sub("<script>\ncfn-init.exe -v --region ${AWS::Region} -r " + resource_name + " -s ${AWS::StackName}\n</script>")),
+        Metadata         = userdata,
+        UserData         = Base64(Sub("<script>\ncfn-init.exe -v --region ${AWS::Region} -r " + resource_name + " -s ${AWS::StackName} -c config1\n</script>")),
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
         )
