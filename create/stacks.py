@@ -297,9 +297,11 @@ def app_stack_template(ops, dry_run):
     app_cfn_options.app_subnets             = [import_ref(s) for s in app_cfn_options.network_names['app_subnet_names']]
     app_cfn_options.app_sg                  = import_ref(app_cfn_options.network_names['app_sg_name'])
     app_cfn_options.iam_profile             = import_ref(app_cfn_options.resource_names['ec2_iam_profile'])
-    for stack_name,stack_values in ops.tcpstacks.items():
-        if stack_values['stack_type'] == 'efs':
-             app_cfn_options.userdata_objects[stack_name] = { "Fn::Join" : [ ".", [ import_ref('owncloudtestEFSEndpoint'), "efs", ops.aws_region, "amazonaws.com" ] ] }
+    if ops.tcpstacks:
+        for stack_name,stack_values in ops.tcpstacks.items():
+            if stack_values['stack_type'] == 'efs':
+#                app_cfn_options.userdata_objects[stack_name] = { "Fn::Join" : [ ".", [ import_ref('owncloudtestEFSEndpoint'), "efs", ops.aws_region, "amazonaws.com" ] ] }
+                app_cfn_options.userdata_objects[stack_name] = { "Fn::Join": [".", [import_ref('{}{}'.format(ops.app_name,'EFSEndpoint')), "efs", ops.aws_region, "amazonaws.com"]]}
     app_cfn_options.autoscale_name     = app_name+"Autoscale"
     app_cfn_options.launch_config_name = app_name+"LaunchConfig"
 
