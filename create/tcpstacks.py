@@ -94,13 +94,6 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     if use_nat and use_nat_gw:
         raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
     nat_id = None
-    '''
-        if use_nat:
-            nat_id = ops.nat_ids[az]
-        if use_nat_gw:
-            nat_id = ops.nat_gw_ids[az]
-    '''
-
     stack_subnets = dict()
 
     for count,(az,cidr) in enumerate(sorted(stack_networks.items())):

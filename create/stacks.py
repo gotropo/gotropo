@@ -300,7 +300,6 @@ def app_stack_template(ops, dry_run):
     if ops.tcpstacks:
         for stack_name,stack_values in ops.tcpstacks.items():
             if stack_values['stack_type'] == 'efs':
-#                app_cfn_options.userdata_objects[stack_name] = { "Fn::Join" : [ ".", [ import_ref('owncloudtestEFSEndpoint'), "efs", ops.aws_region, "amazonaws.com" ] ] }
                 app_cfn_options.userdata_objects[stack_name] = { "Fn::Join": [".", [import_ref('{}{}'.format(ops.app_name,'EFSEndpoint')), "efs", ops.aws_region, "amazonaws.com"]]}
     app_cfn_options.autoscale_name     = app_name+"Autoscale"
     app_cfn_options.launch_config_name = app_name+"LaunchConfig"
