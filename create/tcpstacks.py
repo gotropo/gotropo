@@ -105,7 +105,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
 
     for count,(az,cidr) in enumerate(sorted(stack_networks.items())):
         if use_nat:
-            nat_id = ops.nat_ids[az]
+            nat_id = ops.nat_host_ids[az]
         if use_nat_gw:
             nat_id = ops.nat_gw_ids[az]
         net_name = app_cfn_options['network_names']['tcpstacks'][stack_name]['subnet_names'][count]
@@ -179,6 +179,7 @@ def linux_instance(template, instance_setup):
     sg_name         = instance_setup['sg_name']
     keyname         = instance_setup.get("KeyName")
     iam_profile     = instance_setup['iam_profile']
+    private_ip_address  = instance_setup.get('ip_address')
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
@@ -192,8 +193,20 @@ def linux_instance(template, instance_setup):
         env_vars         = instance_setup.get('environment')
     )
 
-    ebs_volume = ec2.EBSBlockDevice( VolumeSize = "50", VolumeType = "gp2", DeleteOnTermination = False)
+    if instance_setup['root_volume_size']:
+        root_volume_size = instance_setup['root_volume_size']
+    else:
+        root_volume_size = "50"
+    ebs_volume = ec2.EBSBlockDevice( VolumeSize = root_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
     bdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvda', Ebs = ebs_volume)
+    volumes = [ bdm ]
+
+    if instance_setup['ebs_volume_size']:
+        ebs_volume_size = instance_setup['ebs_volume_size']
+        ebs_vol = ec2.EBSBlockDevice( VolumeSize = ebs_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
+        ebsbdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvdf', Ebs = ebs_vol)
+        volumes.append(ebsbdm)
+
     ec2_args = dict(
         ImageId          = ami_image,
         InstanceType     = instance_size,
@@ -206,7 +219,7 @@ def linux_instance(template, instance_setup):
              BillingID = billing_id
         ),
         SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
-        BlockDeviceMappings = [bdm],
+        BlockDeviceMappings = volumes,
         UserData         = userdata_1,
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
@@ -215,13 +228,15 @@ def linux_instance(template, instance_setup):
 
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
+        previous_instance = instance_setup['previous_instance']
         stack_instance = template.add_resource(ec2_instance_func(DependsOn = previous_instance))
     else:
         stack_instance = template.add_resource(ec2_instance_func())
 
-    if email_topic_arn:
-        create_disk_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn, fs_mounts)
-        create_memory_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn)
+    return stack_instance
+    #if email_topic_arn:
+        #create_disk_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn, fs_mounts)
+        #create_memory_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn)
 
 def windows_instance(template, instance_setup):
     resource_name = instance_setup['resource_name']
@@ -265,9 +280,9 @@ def windows_instance(template, instance_setup):
         )
     )
 
-
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
+        previous_instance = instance_setup['previous_instance']
         stack_instance = template.add_resource(ec2_instance_func(DependsOn = previous_instance))
     else:
         stack_instance = template.add_resource(ec2_instance_func())
@@ -328,18 +343,23 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['userdata_vars']   = userdata_vars_copy
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
+        instance_setup['build_serial']    = stack_setup['build_serial']
+
+        if ops.get('root_volume_size'):
+            instance_setup['root_volume_size'] = ops['root_volume_size']
 
         instance_setup['previous_instance'] = previous_instance
 
-        instance_create(template, instance_setup)
+        stack_instance = instance_create(template, instance_setup)
 
         if instance_setup.get("domain"):
+            domain = instance_setup['domain'][:-1]
+            route53_zone = "".join([domain.split(".",-1)[-1],"."])
             create_record_set(
                 template,
                 "".join([app_name, instance, "Domain"]),
                 stack_instance,
                 instance_setup['domain'],
-                instance_setup['route53_zone'],
+                route53_zone,
             )
         previous_instance = resource_name
-
