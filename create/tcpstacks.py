@@ -151,6 +151,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         in_ports     = stack_ports,
         out_ports    = stack_ports,
         ssh_hosts    = ops.get("deploy_hosts"),
+        ssh_ports    = [3389],
         custom_rules = custom_stack_rules,
         ops          = ops,
     )

@@ -133,7 +133,7 @@ def sg_rule(net, port):
         )
     return sg_r
 
-def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rules = None, ssh_hosts = None):
+def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rules = None, ssh_hosts = None, ssh_ports = [22]):
     vpc_id      = ops.vpc_id
     billing_id  = ops.billing_id
     deploy_env  = ops.deploy_env
@@ -143,8 +143,8 @@ def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rule
     ingress_rules = [sg_rule(net, port) for (net,port) in combine(in_networks, in_ports)]
     if ssh_hosts:
         for dhost in sorted(ssh_hosts):
-            ingress_rules.append(sg_rule(dhost, 22))
-            ingress_rules.append(sg_rule(dhost, 3389))
+            for p in ssh_ports:
+                ingress_rules.append(sg_rule(dhost, p))
     egress_rules = [sg_rule('0.0.0.0/0', out_port) for out_port in sorted(out_ports)]
 
     for dp in default_out_ports:
