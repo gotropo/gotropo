@@ -170,7 +170,13 @@ def notification_permission(deploy_bucket):
 def logwatch_permission(log_group):
     return awacs.aws.Statement(
             Effect   = awacs.aws.Allow,
-            Action   = [logs.CreateLogGroup,logs.CreateLogStream, logs.DescribeLogStreams, logs.PutLogEvents],
+            Action   = [
+                logs.CreateLogGroup,
+                logs.CreateLogStream,
+                logs.DescribeLogStreams,
+                logs.DescribeLogGroups,
+                logs.PutLogEvents
+            ],
             Resource = [
                 Join("",["arn:aws:logs:*:*:*:", log_group, ":*:*"]),
                 ],
