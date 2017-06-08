@@ -45,7 +45,7 @@ def create_network_names(ops):
         app_nacl_name = app_name+"NetAcl"+"App",
     )
     if ops.get('elb'):
-        s3_bucket=ops['elb']['bucket']
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
         s3_bucket=ops.elb_bucket
 
@@ -147,7 +147,7 @@ def network_stack_template(ops, dry_run):
     app_nets     = [val for key,val in sorted(ops.app_networks.items())]
 
     if ops.get('elb'):
-        s3_bucket=ops['elb']['bucket']
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
         s3_bucket=ops.elb_bucket
 
@@ -296,9 +296,10 @@ def app_stack_template(ops, dry_run):
         create.prerun.call(template, ops.app_prerun, dry_run)
 
     if ops.get('elb'):
-        s3_bucket=ops['elb']['bucket']
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
         s3_bucket=ops.elb_bucket
+
 
     external_ports = [val[0] for val in ops.port_map.values()]
     internal_ports = [val[1] for val in ops.port_map.values()]
