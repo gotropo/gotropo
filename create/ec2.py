@@ -73,6 +73,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         AccessLoggingPolicy    = elasticloadbalancing.AccessLoggingPolicy( Enabled = True,
                                                 S3BucketName    = ops.elb_bucket,
                                                 S3BucketPrefix  = elb_bucket_prefix,
+                                                EmitInterval    = "5",
                                             ),
         # Enable ConnectionDrainingPolicy
         ConnectionDrainingPolicy = elasticloadbalancing.ConnectionDrainingPolicy(
