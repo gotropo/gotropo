@@ -65,7 +65,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
     healthcheck_settings= ops.get("healthcheck_settings") or default_healthcheck_settings
     if ops.get('elb'):
         s3_bucket=ops['elb']['bucket']
-        scheme=ops['elb']['scheme']
+        scheme=ops[elb].get('scheme','internet-facing')
     else:
         s3_bucket=ops.elb_bucket
         scheme='internet-facing'
