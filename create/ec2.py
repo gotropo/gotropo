@@ -63,10 +63,12 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Timeout            = "4",
     )
     healthcheck_settings= ops.get("healthcheck_settings") or default_healthcheck_settings
-    if ops['elb']['bucket']:
+    if ops.get('elb'):
         s3_bucket=ops['elb']['bucket']
+        scheme=ops['elb'].get('scheme','internet-facing')
     else:
-        s3_bucket=ops.elb_bucket
+        s3_bucket=ops.get("elb_bucket")
+        scheme='internet-facing'
 
     elastic_elb = template.add_resource(elasticloadbalancing.LoadBalancer(
         elb_name,
@@ -86,7 +88,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Listeners = [elb_listener(port = value[0], instance_port = value[1], ssl_cert = ssl_cert, proto=proto) for proto, value in port_map.items()],
         CrossZone = True,
         SecurityGroups = sec_grp_list,
-        Scheme         = ops['elb']['scheme'],
+        Scheme         = scheme,
     ))
     return Ref(elastic_elb)
 

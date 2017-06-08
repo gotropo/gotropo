@@ -44,10 +44,10 @@ def create_network_names(ops):
         #Network ACL rules
         app_nacl_name = app_name+"NetAcl"+"App",
     )
-    if ops['elb']['bucket']:
-        s3_bucket=ops['elb']['bucket']
+    if ops.get('elb'):
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.elb_bucket
+        s3_bucket=ops.get("elb_bucket")
 
     if s3_bucket:
         net_names.update(
@@ -146,10 +146,10 @@ def network_stack_template(ops, dry_run):
     app_ports    = set([val[1] for key,val in ops.port_map.items()])
     app_nets     = [val for key,val in sorted(ops.app_networks.items())]
 
-    if ops['elb']['bucket']:
-        s3_bucket=ops['elb']['bucket']
+    if ops.get('elb'):
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.elb_bucket
+        s3_bucket=ops.get("elb_bucket")
 
     if s3_bucket:
        elb_nets     = [val for keys,val in ops.elb_networks.items()]
@@ -295,10 +295,11 @@ def app_stack_template(ops, dry_run):
     if ops.get("app_prerun"):
         create.prerun.call(template, ops.app_prerun, dry_run)
 
-    if ops['elb']['bucket']:
-        s3_bucket=ops['elb']['bucket']
+    if ops.get('elb'):
+        s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.elb_bucket
+        s3_bucket=ops.get("elb_bucket")
+
 
     external_ports = [val[0] for val in ops.port_map.values()]
     internal_ports = [val[1] for val in ops.port_map.values()]
