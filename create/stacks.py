@@ -47,7 +47,7 @@ def create_network_names(ops):
     if ops.get('elb'):
         s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.get("elb_bucket"):
+        s3_bucket=ops.get("elb_bucket")
 
     if s3_bucket:
         net_names.update(
@@ -149,7 +149,7 @@ def network_stack_template(ops, dry_run):
     if ops.get('elb'):
         s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.get("elb_bucket"):
+        s3_bucket=ops.get("elb_bucket")
 
     if s3_bucket:
        elb_nets     = [val for keys,val in ops.elb_networks.items()]
@@ -298,7 +298,7 @@ def app_stack_template(ops, dry_run):
     if ops.get('elb'):
         s3_bucket=ops['elb'].get('bucket', 'None')
     else:
-        s3_bucket=ops.get("elb_bucket"):
+        s3_bucket=ops.get("elb_bucket")
 
 
     external_ports = [val[0] for val in ops.port_map.values()]
