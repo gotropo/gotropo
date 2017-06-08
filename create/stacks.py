@@ -44,7 +44,7 @@ def create_network_names(ops):
         #Network ACL rules
         app_nacl_name = app_name+"NetAcl"+"App",
     )
-    if ops['elb']['bucket']:
+    if ops.get('elb'):
         s3_bucket=ops['elb']['bucket']
     else:
         s3_bucket=ops.elb_bucket
@@ -146,7 +146,7 @@ def network_stack_template(ops, dry_run):
     app_ports    = set([val[1] for key,val in ops.port_map.items()])
     app_nets     = [val for key,val in sorted(ops.app_networks.items())]
 
-    if ops['elb']['bucket']:
+    if ops.get('elb'):
         s3_bucket=ops['elb']['bucket']
     else:
         s3_bucket=ops.elb_bucket
@@ -295,7 +295,7 @@ def app_stack_template(ops, dry_run):
     if ops.get("app_prerun"):
         create.prerun.call(template, ops.app_prerun, dry_run)
 
-    if ops['elb']['bucket']:
+    if ops.get('elb'):
         s3_bucket=ops['elb']['bucket']
     else:
         s3_bucket=ops.elb_bucket
