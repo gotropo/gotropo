@@ -143,6 +143,20 @@ def bucket_permission(deploy_bucket, deploy_env, deploy_dest = None):
                 ],
         )
 
+def ec2_ssmagent():
+    actions = [
+        ("ssm","DescribeAssociation"),
+        ("ssm","GetDocument"),
+        ("ssm","ListAssociations"),
+        ("ssm","UpdateAssociationStatus"),
+        ("ssm","UpdateInstanceInformation"),
+    ]
+    return awacs.aws.Statement(
+            Effect   = awacs.aws.Allow,
+            Action   = [Action(s,i) for s,i in actions],
+            Resource = ["*"]
+        )
+
 def notification_permission(deploy_bucket):
     return awacs.aws.Statement(
             Effect   = awacs.aws.Allow,
@@ -388,6 +402,7 @@ def app_role(deploy_bucket, deploy_env, log_group):
     role_statement.append(cloudwatch_del_alarms())
     role_statement.append(ecr_get_auth_token())
     role_statement.append(ami_readonly())
+    role_statement.append(ec2_ssmagent())
     return role_statement
 
 def app_profile(template, ops, app_cfn_options, export = True):

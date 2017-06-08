@@ -533,15 +533,31 @@ def windows_cloudinit(
         svals = {}
     #--> to here
 
-
     cfn_files = {}
     cmds      = {}
 
     for count,psf in enumerate(powershell_files):
-        cfn_file_key = "C:\\cfn\\scripts\\"+os.path.basename(psf)
-        cfn_file_contents = read_file(psf)
-        cfn_files[cfn_file_key] = dict(content=cfn_file_contents)
-        cmds[count] = dict(command="powershell.exe -Command "+cfn_file_key)
+        if type(psf) is str:
+            local_file   = psf
+            reboot_flag  = False
+            content_only = False
+        else:
+            local_file   = psf['local_file']
+            reboot_flag  = psf.get("reboot", False)
+            content_only = psf.get("content_only", False)
+
+        cfn_file_key = "C:\\cfn\\scripts\\"+os.path.basename(local_file)
+        cfn_file_contents = read_file(local_file)
+        cfn_files[cfn_file_key] = dict(content=Sub(literal_unicode("".join(cfn_file_contents)), **svals))
+
+        if not content_only:
+            if reboot_flag:
+                cmds[count] = dict(
+                    command = "powershell.exe -executionpolicy Bypass -File "+cfn_file_key,
+                    waitAfterCompletion = "forever"
+                )
+            else:
+                cmds[count] = dict(command="powershell.exe -executionpolicy Bypass -File "+cfn_file_key)
 
     metadata = cloudformation.Metadata(
         cloudformation.Init(
