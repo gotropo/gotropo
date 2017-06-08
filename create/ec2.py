@@ -63,6 +63,11 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Timeout            = "4",
     )
     healthcheck_settings= ops.get("healthcheck_settings") or default_healthcheck_settings
+    if ops['elb']['bucket']:
+        s3_bucket=ops['elb']['bucket']
+    else:
+        s3_bucket=ops.elb_bucket
+
     elastic_elb = template.add_resource(elasticloadbalancing.LoadBalancer(
         elb_name,
         Tags = Tags(BillingID = billing_id),
@@ -70,7 +75,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         Subnets          = elb_subnet,
         HealthCheck      = elasticloadbalancing.HealthCheck(**healthcheck_settings),
         AccessLoggingPolicy    = elasticloadbalancing.AccessLoggingPolicy( Enabled = True,
-                                                S3BucketName    = ops['elb']['bucket'],
+                                                S3BucketName    = s3_bucket,
                                                 S3BucketPrefix  = elb_bucket_prefix,
                                             ),
         # Enable ConnectionDrainingPolicy

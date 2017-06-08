@@ -44,8 +44,12 @@ def create_network_names(ops):
         #Network ACL rules
         app_nacl_name = app_name+"NetAcl"+"App",
     )
-
     if ops['elb']['bucket']:
+        s3_bucket=ops['elb']['bucket']
+    else:
+        s3_bucket=ops.elb_bucket
+
+    if s3_bucket:
         net_names.update(
             elb_subnet_names = ["".join([app_name,"Sn","Elb",key]) for key,val in sorted(ops.elb_networks.items())],
             elb_sg_name = app_name+"Sg"+"Elb",
@@ -68,7 +72,7 @@ def create_network_names(ops):
                 service_net_names['rds_subnet_grp_name'] = app_name + "RDSSnGroup"
             net_names['tcpstacks'][service_name] = service_net_names
 
-    if ops['elb']['bucket']:
+    if s3_bucket:
         net_names.update(
             elb_subnet_names = ["".join([app_name,"Sn","Elb",key]) for key,val in sorted(ops.elb_networks.items())],
             elb_sg_name = app_name+"Sg"+"Elb",
@@ -143,6 +147,11 @@ def network_stack_template(ops, dry_run):
     app_nets     = [val for key,val in sorted(ops.app_networks.items())]
 
     if ops['elb']['bucket']:
+        s3_bucket=ops['elb']['bucket']
+    else:
+        s3_bucket=ops.elb_bucket
+
+    if s3_bucket:
        elb_nets     = [val for keys,val in ops.elb_networks.items()]
        #TODO: this can be cleaner with a iterator
        elb_subnet = []
@@ -286,6 +295,10 @@ def app_stack_template(ops, dry_run):
     if ops.get("app_prerun"):
         create.prerun.call(template, ops.app_prerun, dry_run)
 
+    if ops['elb']['bucket']:
+        s3_bucket=ops['elb']['bucket']
+    else:
+        s3_bucket=ops.elb_bucket
 
     external_ports = [val[0] for val in ops.port_map.values()]
     internal_ports = [val[1] for val in ops.port_map.values()]
@@ -304,7 +317,7 @@ def app_stack_template(ops, dry_run):
     app_cfn_options.autoscale_name     = app_name+"Autoscale"
     app_cfn_options.launch_config_name = app_name+"LaunchConfig"
 
-    if ops['elb']['bucket']:
+    if s3_bucket:
        app_cfn_options.elb_subnets   = [import_ref(s) for s in app_cfn_options.network_names['elb_subnet_names']]
        app_cfn_options.elb_name      = app_name+"Elb"
        app_cfn_options.elb_sg        = import_ref(app_cfn_options.network_names['elb_sg_name'])
