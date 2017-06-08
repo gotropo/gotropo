@@ -343,7 +343,7 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['userdata_vars']   = userdata_vars_copy
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
-        instance_setup['build_serial']    = stack_setup['build_serial']
+        instance_setup['build_serial']    = stack_setup.get('build_serial')
 
         if ops.get('root_volume_size'):
             instance_setup['root_volume_size'] = ops['root_volume_size']

@@ -148,6 +148,7 @@ def ec2_ssmagent():
         ("ssm","DescribeAssociation"),
         ("ssm","GetDocument"),
         ("ssm","ListAssociations"),
+        ("ssm","ListInstanceAssociations"),
         ("ssm","UpdateAssociationStatus"),
         ("ssm","UpdateInstanceInformation"),
     ]
