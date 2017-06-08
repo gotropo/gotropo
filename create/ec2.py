@@ -128,7 +128,7 @@ def launch_config(template, name, key_name, userdata, sec_grp, iam_profile, root
        lc_ops.update(
             BlockDeviceMappings= [ ec2.BlockDeviceMapping(
                                        DeviceName="/dev/xvda",
-                                       Ebs=ec2.EBSBlockDevice( VolumeSize=root_volume_size )
+                                       Ebs=ec2.EBSBlockDevice( VolumeType = "gp2", VolumeSize=root_volume_size )
                                      ),
                                  ],
         )
