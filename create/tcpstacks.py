@@ -74,7 +74,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     app_nets = [val for key,val in sorted(ops.app_networks.items())]
     nat_networks = ops.get("nat_hosts_sn")
 
-    stack_ports         = stack_setup['ports']
+    stack_ports         = stack_setup.get('ports', [])
 
     internal_ports      = stack_setup.get('internal_ports')
     if internal_ports:
@@ -151,7 +151,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         in_ports     = stack_ports,
         out_ports    = stack_ports,
         ssh_hosts    = ops.get("deploy_hosts"),
-        ssh_ports    = [3389],
+        ssh_ports    = [3389, 5985],
         custom_rules = custom_stack_rules,
         ops          = ops,
     )
@@ -345,6 +345,8 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
         instance_setup['build_serial']    = stack_setup.get('build_serial')
+
+        instance_setup['userdata_file']   = stack_setup.get('userdata_file', []) + instance_setup.get('userdata_file', [])
 
         if ops.get('root_volume_size'):
             instance_setup['root_volume_size'] = ops['root_volume_size']
