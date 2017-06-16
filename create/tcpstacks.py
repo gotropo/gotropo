@@ -169,6 +169,7 @@ def linux_instance(template, instance_setup):
     subnet          = instance_setup['subnet']
     sg_name         = instance_setup['sg_name']
     keyname         = instance_setup.get("KeyName")
+    fs_mounts       = instance_setup['fs_mounts']
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
@@ -188,7 +189,7 @@ def linux_instance(template, instance_setup):
         ImageId          = ami_image,
         InstanceType     = instance_size,
         SubnetId         = subnet,
-        IamInstanceProfile = iam_profile,
+#        IamInstanceProfile = iam_profile,
         KeyName          = keyname,
         Tags             = Tags(
              Name = resource_name,
@@ -317,7 +318,6 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
         instance_setup['previous_instance'] = previous_instance
         instance_setup['fs_mounts'] = fs_mounts
-
         instance_create(template, instance_setup)
 
         if instance_setup.get("domain"):
