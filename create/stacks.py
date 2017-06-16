@@ -217,7 +217,7 @@ def network_stack_template(ops, dry_run):
             raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
         nat_id = None
         if use_nat:
-            nat_id = ops.nat_ids[az]
+            nat_id = ops.nat_host_ids[az]
         if use_nat_gw:
             nat_id = ops.nat_gw_ids[az]
         if use_nat and use_nat_gw:

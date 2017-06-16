@@ -171,7 +171,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     for az,cidr in sorted(mongo_networks.items()):
         net_name            = "".join([ops.app_name,"Sn",stack_name,az])
-        subnet              = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+        subnet              = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops.billing_id,ops.deploy_env)
         mongo_subnets[az]   = subnet
         create.network.routetable( template, ops.vpc_id, "Route"+net_name, subnet, nat_host_id = ops.nat_host_ids[az],
                                    vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route)
@@ -248,7 +248,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         app_cfn_options.db_names.append(shard_name)
         app_cfn_options.shard_names.append(shard_name)
         ip_name             = "".join([shrad_type,str(i),str(j),"IP"])
-        add_instances(template, ops, app_cfn_options, shard_name, ip_name, "r3.large", db_ips, shard_userdata, az, previous_instance, fs_mounts)
+        add_instances(template, ops, app_cfn_options, shard_name, ip_name, "r4.large", db_ips, shard_userdata, az, previous_instance, fs_mounts)
         previous_instance   = shard_name
         db_ips[ip_name]     = GetAtt(shard_name,"PrivateIp")
         j -= 1

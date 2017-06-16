@@ -30,7 +30,7 @@ def create_disk_cloudwatch_alarm(template, instance_id, resource_name, email_top
                 namespace           = "System/Linux"
                 metric              = "DiskSpaceUtilization"
                 create_cloudwatch_alarm(template, instance_id, resource_name, email_topic_arn, disk_dimensions, namespace, metric, str(count))
-                count+1
+                count += 1
 
 def create_memory_cloudwatch_alarm(template, instance_id, resource_name, email_topic_arn):
         mem_dimensions      = [MetricDimension( Name = "InstanceId", Value  = instance_id,)]
@@ -98,7 +98,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
 
     for count,(az,cidr) in enumerate(sorted(stack_networks.items())):
         if use_nat:
-            nat_id = ops.nat_ids[az]
+            nat_id = ops.nat_host_ids[az]
         if use_nat_gw:
             nat_id = ops.nat_gw_ids[az]
         net_name = app_cfn_options['network_names']['tcpstacks'][stack_name]['subnet_names'][count]
@@ -310,13 +310,13 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['resource_name']   = resource_name
         instance_setup['deploy_env']      = stack_setup['deploy_env']
         instance_setup['billing_id']      = stack_setup['billing_id']
-        instance_setup['ami_image']       = stack_setup['ami_image']
+        instance_setup['ami_image'] = ops.get('ami_image')
         instance_setup['subnet']          = stack_network_info['stack_subnets'][az]
         instance_setup['userdata_vars']   = userdata_vars_copy
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
-
         instance_setup['previous_instance'] = previous_instance
+        instance_setup['fs_mounts'] = fs_mounts
 
         instance_create(template, instance_setup)
 

@@ -29,7 +29,7 @@ def subnet(template, vpc_id, name, cidr, az, billing_id, deploy_env):
     return Ref(sn)
 
 def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
-        vpn_id = None, vpn_route = None, use_nat = True, use_nat_gw = True):
+        vpn_id = None, vpn_route = None, use_nat = True, use_nat_gw = False):
     """Create route table for given subnet. Requres either a NAT host, nat_id, or an Internet
     Gateway, igw_id. VPN connection optional"""
 
