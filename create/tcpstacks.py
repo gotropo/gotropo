@@ -74,7 +74,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     app_nets = [val for key,val in sorted(ops.app_networks.items())]
     nat_networks = ops.get("nat_hosts_sn")
 
-    stack_ports         = stack_setup['ports']
+    stack_ports         = stack_setup.get('ports', [])
 
     internal_ports      = stack_setup.get('internal_ports')
     if internal_ports:
@@ -122,7 +122,9 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     if nat_networks:
         networks_cidrs.extend(nat_networks)
 
-    create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []))
+    custom_networks = set([cr[0] for cr in sorted(stack_setup.get("custom_rules"))])
+
+    create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []) + list(custom_networks))
 
     for count,(az,subnet) in enumerate(sorted(stack_subnets.items())):
         assoc_name = app_name+stack_name+"AclAssoc"+str(count)
@@ -142,6 +144,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         in_ports     = stack_ports,
         out_ports    = stack_ports,
         ssh_hosts    = ops.get("deploy_hosts"),
+        ssh_ports    = [3389, 5985],
         custom_rules = custom_stack_rules,
         ops          = ops,
     )
@@ -169,7 +172,12 @@ def linux_instance(template, instance_setup):
     subnet          = instance_setup['subnet']
     sg_name         = instance_setup['sg_name']
     keyname         = instance_setup.get("KeyName")
+<<<<<<< HEAD
     fs_mounts       = instance_setup['fs_mounts']
+=======
+    iam_profile     = instance_setup['iam_profile']
+    private_ip_address  = instance_setup.get('ip_address')
+>>>>>>> remotes/origin/windows_powershell_testing
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
@@ -183,8 +191,20 @@ def linux_instance(template, instance_setup):
         env_vars         = instance_setup.get('environment')
     )
 
-    ebs_volume = ec2.EBSBlockDevice( VolumeSize = "50", VolumeType = "gp2", DeleteOnTermination = False)
+    if instance_setup['root_volume_size']:
+        root_volume_size = instance_setup['root_volume_size']
+    else:
+        root_volume_size = "50"
+    ebs_volume = ec2.EBSBlockDevice( VolumeSize = root_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
     bdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvda', Ebs = ebs_volume)
+    volumes = [ bdm ]
+
+    if instance_setup['ebs_volume_size']:
+        ebs_volume_size = instance_setup['ebs_volume_size']
+        ebs_vol = ec2.EBSBlockDevice( VolumeSize = ebs_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
+        ebsbdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvdf', Ebs = ebs_vol)
+        volumes.append(ebsbdm)
+
     ec2_args = dict(
         ImageId          = ami_image,
         InstanceType     = instance_size,
@@ -197,7 +217,7 @@ def linux_instance(template, instance_setup):
              BillingID = billing_id
         ),
         SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
-        BlockDeviceMappings = [bdm],
+        BlockDeviceMappings = volumes,
         UserData         = userdata_1,
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
@@ -206,13 +226,15 @@ def linux_instance(template, instance_setup):
 
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
+        previous_instance = instance_setup['previous_instance']
         stack_instance = template.add_resource(ec2_instance_func(DependsOn = previous_instance))
     else:
         stack_instance = template.add_resource(ec2_instance_func())
 
-    if email_topic_arn:
-        create_disk_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn, fs_mounts)
-        create_memory_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn)
+    return stack_instance
+    #if email_topic_arn:
+        #create_disk_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn, fs_mounts)
+        #create_memory_cloudwatch_alarm(template,Ref(stack_instance),resource_name,email_topic_arn)
 
 def windows_instance(template, instance_setup):
     resource_name = instance_setup['resource_name']
@@ -223,6 +245,7 @@ def windows_instance(template, instance_setup):
     subnet        = instance_setup['subnet']
     sg_name       = instance_setup['sg_name']
     keyname       = instance_setup.get("KeyName")
+    iam_profile   = instance_setup['iam_profile']
 
     userdata_files = instance_setup['userdata_file']
 
@@ -230,19 +253,17 @@ def windows_instance(template, instance_setup):
     if not instance_size:
         instance_size = "t2.medium"
 
-    userdata = create.ec2.windows_userdata(
+    userdata = create.ec2.windows_cloudinit(
         powershell_files = userdata_files,
         sub_values = instance_setup['userdata_vars'],
     )
-
-    iam_profile = None  #TODO
 
     ec2_args = dict(
         ImageId          = ami_image,
         InstanceType     = instance_size,
         SubnetId         = subnet,
         KeyName          = keyname,
-        #IamInstanceProfile = iam_profile,
+        IamInstanceProfile = iam_profile,
         Tags             = Tags(
              Name = resource_name,
              Env = deploy_env,
@@ -250,15 +271,16 @@ def windows_instance(template, instance_setup):
         ),
         SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
         #BlockDeviceMappings = [bdm],
-        UserData         = userdata,
+        Metadata         = userdata,
+        UserData         = Base64(Sub("<script>\ncfn-init.exe -v --region ${AWS::Region} -r " + resource_name + " -s ${AWS::StackName} -c config1\n</script>")),
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
         )
     )
 
-
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
+        previous_instance = instance_setup['previous_instance']
         stack_instance = template.add_resource(ec2_instance_func(DependsOn = previous_instance))
     else:
         stack_instance = template.add_resource(ec2_instance_func())
@@ -277,8 +299,10 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     fs_mounts = stack_setup.get('fs_mounts', [])
 
-    iam_profile = ImportValue(app_cfn_options.resource_names['ec2_iam_profile'])
+    stack_setup['iam_profile'] = ImportValue(app_cfn_options.resource_names['ec2_iam_profile'])
     userdata_vars = {k:ops.get(v) for k,v in ops.userdata_exports.items()}
+    if ops.get("userdata_values"):
+        userdata_vars.update(ops.get("userdata_values"))
     cf_param_refs = {k:v for k,v in app_cfn_options.cf_params.items()}
     if stack_setup.get("environment"):
         update_dict(userdata_vars, stack_setup.get("environment"))
@@ -312,6 +336,7 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['deploy_env']      = stack_setup['deploy_env']
         instance_setup['billing_id']      = stack_setup['billing_id']
         instance_setup['ami_image'] = ops.get('ami_image')
+        instance_setup['iam_profile']     = stack_setup['iam_profile']
         instance_setup['subnet']          = stack_network_info['stack_subnets'][az]
         instance_setup['userdata_vars']   = userdata_vars_copy
         instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
@@ -319,14 +344,21 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['previous_instance'] = previous_instance
         instance_setup['fs_mounts'] = fs_mounts
         instance_create(template, instance_setup)
+        instance_setup['build_serial']    = stack_setup.get('build_serial')
+        instance_setup['userdata_file']   = stack_setup.get('userdata_file', []) + instance_setup.get('userdata_file', [])
+        if ops.get('root_volume_size'):
+            instance_setup['root_volume_size'] = ops['root_volume_size']
+
+        stack_instance = instance_create(template, instance_setup)
 
         if instance_setup.get("domain"):
+            domain = instance_setup['domain'][:-1]
+            route53_zone = "".join([domain.split(".",-1)[-1],"."])
             create_record_set(
                 template,
                 "".join([app_name, instance, "Domain"]),
                 stack_instance,
                 instance_setup['domain'],
-                instance_setup['route53_zone'],
+                route53_zone,
             )
         previous_instance = resource_name
-
