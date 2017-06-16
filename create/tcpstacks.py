@@ -172,12 +172,9 @@ def linux_instance(template, instance_setup):
     subnet          = instance_setup['subnet']
     sg_name         = instance_setup['sg_name']
     keyname         = instance_setup.get("KeyName")
-<<<<<<< HEAD
     fs_mounts       = instance_setup['fs_mounts']
-=======
     iam_profile     = instance_setup['iam_profile']
     private_ip_address  = instance_setup.get('ip_address')
->>>>>>> remotes/origin/windows_powershell_testing
 
     instance_size = instance_setup.get('instance_size')
     if not instance_size:
