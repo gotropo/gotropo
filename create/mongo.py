@@ -173,7 +173,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         net_name            = "".join([ops.app_name,"Sn",stack_name,az])
         subnet              = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops.billing_id,ops.deploy_env)
         mongo_subnets[az]   = subnet
-        create.network.routetable( template, ops.vpc_id, "Route"+net_name, subnet, nat_host_id = ops.nat_host_ids[az],
+        create.network.routetable( template, ops.vpc_id, "Route"+net_name, subnet, nat_id = ops.nat_host_ids[az],
                                    vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route)
     mongo_nacl_factory      = create.network.AclFactory(
                                     template,
@@ -268,12 +268,14 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
       dbconfig_name             = "".join([ops.app_name,"DBConfig",az])
       app_cfn_options[dbconfig] = dbconfig_name
       app_cfn_options.db_names.append(app_cfn_options[dbconfig])
-      add_instances(template, ops, app_cfn_options, app_cfn_options[dbconfig], "Config", "t2.micro", db_ips, config_userdata, az, previous_instance, fs_mounts)
+      add_instances(template, ops, app_cfn_options, shard_name, ip_name, "r4.large", db_ips, shard_userdata, az,
+                    previous_instance, fs_mounts)
       previous_instance                 = dbconfig_name
       db_ips["".join(["CFGIP",str(i)])] = GetAtt(dbconfig_name,"PrivateIp")
       config_ip.append(GetAtt(dbconfig_name,"PrivateIp"))
       create_record_set(template, ops, app_cfn_options, mongo_dbs[(i-1)], config_ip[(i-1)], i)
       i += 1
+
 
 
     ## Create Mongo Man
@@ -285,7 +287,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
       az        = "".join(["az",str(i)])
       dbman     = "".join([ops.app_name,"DBMan",az])
       app_cfn_options.db_names.append(dbman)
-      add_instances(template, ops, app_cfn_options, dbman, "Man", "m3.medium", db_ips, man_userdata, az, previous_instance, fs_mounts)
+      add_instances(template, ops, app_cfn_options, dbman, "Man", "m3.large", db_ips, man_userdata, az, previous_instance, fs_mounts)
       previous_instance                 = dbman
       db_ips["".join(["MANIP",str(i)])] = GetAtt(dbman,"PrivateIp")
       i += 1

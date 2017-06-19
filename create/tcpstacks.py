@@ -123,8 +123,10 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         networks_cidrs.extend(nat_networks)
 
     custom_networks = set([cr[0] for cr in sorted(stack_setup.get("custom_rules"))])
-
     create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []) + list(custom_networks))
+#   next_rule_number = (10 * int(len(networks_cidrs + ops.get("deploy_hosts"))) + 100)
+#   print(next_rule_number)
+#   create.network.acl_add_networks(template, app_name + stack_name + "NaclRules", nacl, ["10.111.20.8/28"],start_rule=haroon)
 
     for count,(az,subnet) in enumerate(sorted(stack_subnets.items())):
         assoc_name = app_name+stack_name+"AclAssoc"+str(count)
@@ -144,7 +146,7 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
         in_ports     = stack_ports,
         out_ports    = stack_ports,
         ssh_hosts    = ops.get("deploy_hosts"),
-        ssh_ports    = [3389, 5985],
+        ssh_ports    = [3389, 5985,22],
         custom_rules = custom_stack_rules,
         ops          = ops,
     )
@@ -181,26 +183,30 @@ def linux_instance(template, instance_setup):
         instance_size = "t2.medium"
 
     userdata_file = instance_setup['userdata_file']
+
     userdata_1 = create.ec2.multipart_userdata(
-        bash_files       = [userdata_file],
+        bash_files       = userdata_file,
         install_packages = ["docker"],
         sub_values       = instance_setup['userdata_vars'],
         env_vars         = instance_setup.get('environment')
     )
 
     if instance_setup['root_volume_size']:
-        root_volume_size = instance_setup['root_volume_size']
+            root_volume_size = instance_setup['root_volume_size']
     else:
-        root_volume_size = "50"
+            root_volume_size = "50"
+
     ebs_volume = ec2.EBSBlockDevice( VolumeSize = root_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
     bdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvda', Ebs = ebs_volume)
     volumes = [ bdm ]
 
-    if instance_setup['ebs_volume_size']:
+    if 'ebs_volume_size' in instance_setup:
+        print('I am in EBS Setup')
         ebs_volume_size = instance_setup['ebs_volume_size']
         ebs_vol = ec2.EBSBlockDevice( VolumeSize = ebs_volume_size, VolumeType = "gp2", DeleteOnTermination = False)
         ebsbdm = ec2.BlockDeviceMapping( DeviceName = '/dev/xvdf', Ebs = ebs_vol)
         volumes.append(ebsbdm)
+
 
     ec2_args = dict(
         ImageId          = ami_image,
@@ -320,11 +326,13 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     domains = []
     previous_instance = None
+
     for instance, instance_setup in stack_setup['instances'].items():
         az = instance_setup['az']
         userdata_vars_copy = userdata_vars.copy()
         update_dict(userdata_vars_copy, instance_setup.get('environment'))
         resource_name = "".join([stack_resource_name, instance, az])
+
         userdata_vars_copy['resource_name'] = resource_name
         if app_cfn_options.cf_params.get('KeyName'):
             instance_setup['KeyName'] = app_cfn_options.cf_params.get('KeyName')
@@ -340,13 +348,18 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['sg_name']         = stack_network_info['stack_sg_name']
         instance_setup['previous_instance'] = previous_instance
         instance_setup['fs_mounts'] = fs_mounts
-        instance_create(template, instance_setup)
         instance_setup['build_serial']    = stack_setup.get('build_serial')
-        instance_setup['userdata_file']   = stack_setup.get('userdata_file', []) + instance_setup.get('userdata_file', [])
+        stack_setup_userdata = stack_setup.get('userdata_file', [])
+        instance_setup_userdata = instance_setup.get('userdata_file', [])
+        if type(stack_setup_userdata) is str:
+            stack_setup_userdata = stack_setup_userdata.split()
+        if type(instance_setup_userdata) is str:
+            instance_setup_userdata = instance_setup_userdata.split()
+        instance_setup['userdata_file']   = stack_setup_userdata + instance_setup_userdata
         if ops.get('root_volume_size'):
             instance_setup['root_volume_size'] = ops['root_volume_size']
-
         stack_instance = instance_create(template, instance_setup)
+
 
         if instance_setup.get("domain"):
             domain = instance_setup['domain'][:-1]
