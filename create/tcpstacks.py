@@ -213,7 +213,7 @@ def linux_instance(template, instance_setup):
         ImageId          = ami_image,
         InstanceType     = instance_size,
         SubnetId         = subnet,
-#        IamInstanceProfile = iam_profile,
+        IamInstanceProfile = iam_profile,
         KeyName          = keyname,
         Tags             = Tags(
              Name = resource_name,
