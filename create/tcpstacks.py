@@ -257,10 +257,6 @@ def windows_instance(template, instance_setup):
     if not instance_size:
         instance_size = "t2.medium"
 
-    userdata = create.ec2.windows_cloudinit(
-        powershell_files = userdata_files,
-        sub_values = instance_setup['userdata_vars'],
-    )
 
     ec2_args = dict(
         ImageId          = ami_image,
@@ -275,12 +271,20 @@ def windows_instance(template, instance_setup):
         ),
         SecurityGroupIds = [GetAtt(sg_name,"GroupId")],
         #BlockDeviceMappings = [bdm],
-        Metadata         = userdata,
-        UserData         = Base64(Sub("<script>\ncfn-init.exe -v --region ${AWS::Region} -r " + resource_name + " -s ${AWS::StackName} -c config1\n</script>")),
         CreationPolicy   = CreationPolicy(
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
         )
     )
+
+    if  instance_setup.get('userdata_file'):
+        userdata = create.ec2.windows_cloudinit(
+            powershell_files = userdata_files,
+            sub_values = instance_setup['userdata_vars'],
+        )
+        ec2_args.update(
+            Metadata         = userdata,
+            UserData         = Base64(Sub("<script>\ncfn-init.exe -v --region ${AWS::Region} -r " + resource_name + " -s ${AWS::StackName} -c config1\n</script>")),
+        )
 
     ec2_instance_func = partial(ec2.Instance, resource_name, **ec2_args)
     if instance_setup.get('build_serial') and instance_setup['previous_instance']:
@@ -350,6 +354,7 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         instance_setup['previous_instance'] = previous_instance
         instance_setup['fs_mounts'] = fs_mounts
         instance_setup['build_serial']    = stack_setup.get('build_serial')
+        instance_setup['instance_size']   = stack_setup['instance_size']
         stack_setup_userdata = stack_setup.get('userdata_file', [])
         instance_setup_userdata = instance_setup.get('userdata_file', [])
         if type(stack_setup_userdata) is str:
