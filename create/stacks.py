@@ -267,11 +267,12 @@ def network_stack_template(ops, dry_run):
     for service,service_setup in ops.get("tcpstacks",{}).items():
         if service_setup['enabled']:
             stack_name =  service
-            stack_sg_name = app_cfn_options['network_names']['tcpstacks'][service]['sg_name']
-            sg_rules = dict(sec_grp = ImportValue(stack_sg_name), ports = service_setup['ports'])
-            sg_key   = "".join([service,"ExtSecGrpPorts"])
-            ext_stack = {sg_key: [sg_rules]}
-            create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ext_stack)
+            if service_setup.get("ports"):
+                stack_sg_name = app_cfn_options['network_names']['tcpstacks'][service]['sg_name']
+                sg_rules = dict(sec_grp = ImportValue(stack_sg_name), ports = service_setup['ports'])
+                sg_key   = "".join([service,"ExtSecGrpPorts"])
+                ext_stack = {sg_key: [sg_rules]}
+                create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ext_stack)
 
             stack_nacl_name = app_cfn_options['network_names']['tcpstacks'][service]['nacl_name']
             nacl = ImportValue(stack_nacl_name)
