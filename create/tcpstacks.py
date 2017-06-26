@@ -293,9 +293,19 @@ def windows_instance(template, instance_setup):
     else:
         stack_instance = template.add_resource(ec2_instance_func())
 
+def parent_yaml_fallback(ops, stack_setup, instance_setup, option_key):
+    if instance_setup.get(option_key):
+        return instance_setup[option_key]
+    if stack_setup.get(option_key):
+        return stack_setup[option_key]
+    if ops.get(option_key):
+        return ops[option_key]
+    raise(ValueError("{} required for tcp_stacks".format(option_key)))
+
 def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     app_name = ops.app_name
+
 
     stack_setup = stack_setup.copy()
     stack_setup['billing_id'] = ops.billing_id
@@ -342,19 +352,21 @@ def create_ec2_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         if app_cfn_options.cf_params.get('KeyName'):
             instance_setup['KeyName'] = app_cfn_options.cf_params.get('KeyName')
 
-        instance_setup['resource_name']   = resource_name
-        instance_setup['deploy_env']      = stack_setup['deploy_env']
-        instance_setup['billing_id']      = stack_setup['billing_id']
-        instance_setup['ami_image'] = ops.get('ami_image')
-        instance_setup['iam_profile']     = stack_setup['iam_profile']
-        instance_setup['subnet']          = stack_network_info['stack_subnets'][az]
-        instance_setup['userdata_vars']   = userdata_vars_copy
-        instance_setup['email_topic_arn'] = ops.get('email_topic_arn')
-        instance_setup['sg_name']         = stack_network_info['stack_sg_name']
+
+        instance_setup['resource_name']     = resource_name
+        instance_setup['deploy_env']        = stack_setup['deploy_env']
+        instance_setup['billing_id']        = stack_setup['billing_id']
+        instance_setup['iam_profile']       = stack_setup['iam_profile']
+        instance_setup['subnet']            = stack_network_info['stack_subnets'][az]
+        instance_setup['userdata_vars']     = userdata_vars_copy
+        instance_setup['email_topic_arn']   = ops.get('email_topic_arn')
+        instance_setup['sg_name']           = stack_network_info['stack_sg_name']
         instance_setup['previous_instance'] = previous_instance
-        instance_setup['fs_mounts'] = fs_mounts
-        instance_setup['build_serial']    = stack_setup.get('build_serial')
-        instance_setup['instance_size']   = stack_setup['instance_size']
+        instance_setup['fs_mounts']         = fs_mounts
+        instance_setup['build_serial']      = stack_setup.get('build_serial')
+        instance_setup['ami_image']         = parent_yaml_fallback(ops, stack_setup, instance_setup, 'ami_image')
+        instance_setup['instance_size']     = parent_yaml_fallback(ops, stack_setup, instance_setup, 'instance_size')
+
         stack_setup_userdata = stack_setup.get('userdata_file', [])
         instance_setup_userdata = instance_setup.get('userdata_file', [])
         if type(stack_setup_userdata) is str:
