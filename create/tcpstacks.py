@@ -125,7 +125,8 @@ def sub_stack_network(template, ops, app_cfn_options, stack_name, stack_setup):
     custom_networks = set([cr[0] for cr in sorted(stack_setup.get("custom_rules"))])
 #   Need to discuss this with Jeremy. Calling acl_add_networks with custom_networks list, It will open all the inbound ports based on the ports mentioned in yaml.
     #     next_rule_number=create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []) + list(custom_networks))
-    next_rule_number=create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []))
+    next_rule_number = create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, networks_cidrs + ops.get("deploy_hosts", []))
+    next_rule_number = create.network.acl_add_networks(template, app_name+stack_name+"NaclRules", nacl, custom_networks, start_rule = next_rule_number + 10)
     port_list = ['6|80|OutRule', '6|443|OutRule', '6|1024|65535|InRule','17|1024|65535|InRule']
     create.network.acl_add_networks(template, app_name + stack_name + "NaclRules", nacl, ["0.0.0.0/0"],start_rule=next_rule_number, ports=port_list)
 
@@ -250,6 +251,7 @@ def windows_instance(template, instance_setup):
     sg_name       = instance_setup['sg_name']
     keyname       = instance_setup.get("KeyName")
     iam_profile   = instance_setup['iam_profile']
+    private_ip    = instance_setup.get("private_ip")
 
     userdata_files = instance_setup['userdata_file']
 
@@ -275,6 +277,8 @@ def windows_instance(template, instance_setup):
             ResourceSignal = ResourceSignal(Timeout = "PT100M")
         )
     )
+    if private_ip:
+        ec2_args['PrivateIpAddress'] = private_ip
 
     if  instance_setup.get('userdata_file'):
         userdata = create.ec2.windows_cloudinit(
