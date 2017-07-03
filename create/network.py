@@ -29,7 +29,7 @@ def subnet(template, vpc_id, name, cidr, az, billing_id, deploy_env):
     return Ref(sn)
 
 def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
-        vpn_id = None, vpn_route = None, use_nat = True, use_nat_gw = True):
+        vpn_id = None, vpn_route = None, use_nat = True, use_nat_gw = False):
     """Create route table for given subnet. Requres either a NAT host, nat_id, or an Internet
     Gateway, igw_id. VPN connection optional"""
 
@@ -103,7 +103,8 @@ def routetable(template, vpc_id, name, subnet, nat_id = None, igw_id = None,
 
 def sg_rule(net, port):
     if isinstance(port, int):
-        port_num = port
+        port_num1 = port
+        port_num2 = port
         proto = "tcp"
     else:
         if "/" in port:
@@ -111,23 +112,28 @@ def sg_rule(net, port):
         else: #TODO: this shouldn't be here twice
             port_num = port
             proto = "tcp"
+        if ":" in port_num:
+            port_num1, port_num2= port_num.split(':')
+        else:
+            port_num1 = port_num
+            port_num2 = port_num
     if net[0:2] == "sg":
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port_num,
-            ToPort     = port_num,
+            FromPort   = port_num1,
+            ToPort     = port_num2,
             SourceSecurityGroupId = net
         )
     else:
         sg_r = troposphere.ec2.SecurityGroupRule(
             IpProtocol = proto,
-            FromPort   = port_num,
-            ToPort     = port_num,
+            FromPort   = port_num1,
+            ToPort     = port_num2,
             CidrIp     = net
         )
     return sg_r
 
-def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rules = None, ssh_hosts = None):
+def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rules = None, ssh_hosts = None, ssh_ports = [22]):
     vpc_id      = ops.vpc_id
     billing_id  = ops.billing_id
     deploy_env  = ops.deploy_env
@@ -137,7 +143,8 @@ def sec_group(template, name, in_networks, in_ports, out_ports, ops, custom_rule
     ingress_rules = [sg_rule(net, port) for (net,port) in combine(in_networks, in_ports)]
     if ssh_hosts:
         for dhost in sorted(ssh_hosts):
-            ingress_rules.append(sg_rule(dhost, 22))
+            for p in ssh_ports:
+                ingress_rules.append(sg_rule(dhost, p))
     egress_rules = [sg_rule('0.0.0.0/0', out_port) for out_port in sorted(out_ports)]
 
     for dp in default_out_ports:
@@ -193,23 +200,56 @@ def nacl(template, name, vpc_id):
     )
     return Ref(nacl)
 
-def acl_add_networks(template, name, nacl, networks, start_rule = 100):
+def acl_add_networks(template, name, nacl, networks, start_rule = 100, ports=None):
     for count, netw in enumerate(networks):
         rule_number = start_rule + count*10
         for rulename in ['InRule','OutRule']:
             egress = dict(InRule = False, OutRule = True)
-            template.add_resource(
-                troposphere.ec2.NetworkAclEntry(
-                    name+rulename+str(rule_number),
-                    NetworkAclId = nacl,
-                    RuleNumber   = rule_number,
-                    Protocol     = '-1', #TODO config for protocol
-                    CidrBlock    = netw,
-                    Egress       = egress[rulename],
-                    RuleAction   = "Allow"
+            if ports == None:
+                template.add_resource(
+                    troposphere.ec2.NetworkAclEntry(
+                        name+rulename+str(rule_number),
+                        NetworkAclId = nacl,
+                        RuleNumber   = rule_number,
+                        Protocol     = '-1', #TODO config for protocol
+                        CidrBlock    = netw,
+                        Egress       = egress[rulename],
+                        RuleAction   = "Allow"
+                    )
                 )
-            )
-    return start_rule + count*10
+            else:
+                for proto_port_number in enumerate(ports):
+                    proto_port_list=proto_port_number[-1].split("|")
+                    if proto_port_list[-1] == rulename:
+                        if len(proto_port_list) == 3:
+                            template.add_resource(
+                                troposphere.ec2.NetworkAclEntry(
+                                    name + rulename + str(rule_number),
+                                    NetworkAclId=nacl,
+                                    RuleNumber=rule_number,
+                                    Protocol=proto_port_list[0],  # TODO config for protocol
+                                    CidrBlock=netw,
+                                    Egress=egress[rulename],
+                                    RuleAction="Allow",
+                                    PortRange=troposphere.ec2.PortRange(From=proto_port_list[1], To=proto_port_list[1])
+                            )
+                         )
+                            rule_number = rule_number + 10
+                        elif len(proto_port_list) == 4:
+                            template.add_resource(
+                                troposphere.ec2.NetworkAclEntry(
+                                    name + rulename + str(rule_number),
+                                    NetworkAclId=nacl,
+                                    RuleNumber=rule_number,
+                                    Protocol=proto_port_list[0],  # TODO config for protocol
+                                    CidrBlock=netw,
+                                    Egress=egress[rulename],
+                                    RuleAction="Allow",
+                                    PortRange=troposphere.ec2.PortRange(From=proto_port_list[1], To=proto_port_list[2])
+                                )
+                            )
+                            rule_number = rule_number + 10
+    return start_rule + (count*10) + 10
 
 #TODO doesn't seem the best to have this class add to CF template directly, consider alternatives
 class AclFactory(object):

@@ -217,7 +217,7 @@ def network_stack_template(ops, dry_run):
             raise(ValueError("Both Nat and Nat Gateway can not be turned on"))
         nat_id = None
         if use_nat:
-            nat_id = ops.nat_ids[az]
+            nat_id = ops.nat_host_ids[az]
         if use_nat_gw:
             nat_id = ops.nat_gw_ids[az]
         if use_nat and use_nat_gw:
@@ -267,11 +267,12 @@ def network_stack_template(ops, dry_run):
     for service,service_setup in ops.get("tcpstacks",{}).items():
         if service_setup['enabled']:
             stack_name =  service
-            stack_sg_name = app_cfn_options['network_names']['tcpstacks'][service]['sg_name']
-            sg_rules = dict(sec_grp = ImportValue(stack_sg_name), ports = service_setup['ports'])
-            sg_key   = "".join([service,"ExtSecGrpPorts"])
-            ext_stack = {sg_key: [sg_rules]}
-            create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ext_stack)
+            if service_setup.get("ports"):
+                stack_sg_name = app_cfn_options['network_names']['tcpstacks'][service]['sg_name']
+                sg_rules = dict(sec_grp = ImportValue(stack_sg_name), ports = service_setup['ports'])
+                sg_key   = "".join([service,"ExtSecGrpPorts"])
+                ext_stack = {sg_key: [sg_rules]}
+                create.external_services.security_group_rules(template, app_name, aws_region, app_sg, ext_stack)
 
             stack_nacl_name = app_cfn_options['network_names']['tcpstacks'][service]['nacl_name']
             nacl = ImportValue(stack_nacl_name)
@@ -311,7 +312,7 @@ def app_stack_template(ops, dry_run):
     app_cfn_options.app_subnets             = [import_ref(s) for s in app_cfn_options.network_names['app_subnet_names']]
     app_cfn_options.app_sg                  = import_ref(app_cfn_options.network_names['app_sg_name'])
     app_cfn_options.iam_profile             = import_ref(app_cfn_options.resource_names['ec2_iam_profile'])
-    if ops.tcpstacks:
+    if ops.get('tcpstacks'):
         for stack_name,stack_values in ops.tcpstacks.items():
             if stack_values['stack_type'] == 'efs':
                 app_cfn_options.userdata_objects[stack_name] = { "Fn::Join": [".", [import_ref('{}{}'.format(ops.app_name,'EFSEndpoint')), "efs", ops.aws_region, "amazonaws.com"]]}

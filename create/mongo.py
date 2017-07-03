@@ -171,9 +171,9 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
 
     for az,cidr in sorted(mongo_networks.items()):
         net_name            = "".join([ops.app_name,"Sn",stack_name,az])
-        subnet              = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops)
+        subnet              = create.network.subnet(template, ops.vpc_id, net_name, cidr, ops.availability_zones[az],ops.billing_id,ops.deploy_env)
         mongo_subnets[az]   = subnet
-        create.network.routetable( template, ops.vpc_id, "Route"+net_name, subnet, nat_host_id = ops.nat_host_ids[az],
+        create.network.routetable( template, ops.vpc_id, "Route"+net_name, subnet, nat_id = ops.nat_host_ids[az],
                                    vpn_id = ops.ofc_vpn_id, vpn_route = ops.vpn_route)
     mongo_nacl_factory      = create.network.AclFactory(
                                     template,
@@ -232,6 +232,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
       j = 2
       while(j >= 1):
         az = "az1"
+
         if( j == 1):
           shrad_type    = "PS"
         else:
@@ -248,11 +249,12 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
         app_cfn_options.db_names.append(shard_name)
         app_cfn_options.shard_names.append(shard_name)
         ip_name             = "".join([shrad_type,str(i),str(j),"IP"])
-        add_instances(template, ops, app_cfn_options, shard_name, ip_name, "r3.large", db_ips, shard_userdata, az, previous_instance, fs_mounts)
+        add_instances(template, ops, app_cfn_options, shard_name, ip_name, "r4.large", db_ips, shard_userdata, az, previous_instance, fs_mounts)
         previous_instance   = shard_name
         db_ips[ip_name]     = GetAtt(shard_name,"PrivateIp")
         j -= 1
       i += 1
+
 
     ## Create Mongo Config
     cfg_count   = 1
@@ -276,6 +278,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
       i += 1
 
 
+
     ## Create Mongo Man
     man_count   = 1
     i           = 1
@@ -285,7 +288,7 @@ def mongo_stack(template, ops, app_cfn_options, stack_name, stack_setup):
       az        = "".join(["az",str(i)])
       dbman     = "".join([ops.app_name,"DBMan",az])
       app_cfn_options.db_names.append(dbman)
-      add_instances(template, ops, app_cfn_options, dbman, "Man", "m3.medium", db_ips, man_userdata, az, previous_instance, fs_mounts)
+      add_instances(template, ops, app_cfn_options, dbman, "Man", "m4.large", db_ips, man_userdata, az, previous_instance, fs_mounts)
       previous_instance                 = dbman
       db_ips["".join(["MANIP",str(i)])] = GetAtt(dbman,"PrivateIp")
       i += 1

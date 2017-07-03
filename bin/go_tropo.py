@@ -217,7 +217,7 @@ def stack_exec(stacks, config_file, dry_run = False, force = False, use_params =
                 lambda_file = os.path.join(local_path,"/lambdas/mongo_start_stop_lambda.py")
             )
 
-        if ops.get("s3_triggers"):
+        if ops.get("s3_triggers") and "resources" in stacks:
             check_files.append("s3trigger")
             for trigger_name,trigger_setup in ops.s3_triggers.items():
                 check_s3trigger_lambda(

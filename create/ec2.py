@@ -14,6 +14,7 @@ from troposphere import GetAtt
 from troposphere import Base64
 from troposphere import Ref
 from troposphere import ec2
+from troposphere import cloudformation
 from collections import OrderedDict
 import os
 from .utils import update_dict
@@ -79,6 +80,7 @@ def elb(template, elb_name, billing_id, elb_subnet, sec_grp, ssl_cert, health_ch
         AccessLoggingPolicy    = elasticloadbalancing.AccessLoggingPolicy( Enabled = True,
                                                 S3BucketName    = s3_bucket,
                                                 S3BucketPrefix  = elb_bucket_prefix,
+                                                EmitInterval    = "5",
                                             ),
         # Enable ConnectionDrainingPolicy
         ConnectionDrainingPolicy = elasticloadbalancing.ConnectionDrainingPolicy(
@@ -133,7 +135,7 @@ def launch_config(template, name, key_name, userdata, sec_grp, iam_profile, root
        lc_ops.update(
             BlockDeviceMappings= [ ec2.BlockDeviceMapping(
                                        DeviceName="/dev/xvda",
-                                       Ebs=ec2.EBSBlockDevice( VolumeSize=root_volume_size )
+                                       Ebs=ec2.EBSBlockDevice( VolumeType = "gp2", VolumeSize=root_volume_size )
                                      ),
                                  ],
         )
@@ -516,6 +518,62 @@ def read_file(f):
         raise IOError('Error opening or reading file: {}'.format(f))
     return contents
 
+def windows_cloudinit(
+        powershell_files = None,
+        sub_values = None):
+    #TODO: move this. Potentially make multipart userdata Class. From here -->
+    class folded_unicode(str): pass
+    class literal_unicode(str): pass
+
+    def folded_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    def literal_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+    reserved_sub_values = ['cfn_signal']
+
+    if sub_values:
+        for i in reserved_sub_values:
+            if sub_values.get(i):
+                raise("Reserved substitution value used in userdata:" + i)
+        svals = sub_values.copy()
+    else:
+        svals = {}
+    #--> to here
+
+    cfn_files = {}
+    cmds      = {}
+
+    for count,psf in enumerate(powershell_files):
+        if type(psf) is str:
+            local_file   = psf
+            reboot_flag  = False
+            content_only = False
+        else:
+            local_file   = psf['local_file']
+            reboot_flag  = psf.get("reboot", False)
+            content_only = psf.get("content_only", False)
+
+        cfn_file_key = "C:\\cfn\\scripts\\"+os.path.basename(local_file)
+        cfn_file_contents = read_file(local_file)
+        cfn_files[cfn_file_key] = dict(content=Sub(literal_unicode("".join(cfn_file_contents)), **svals))
+
+        if not content_only:
+            if reboot_flag:
+                cmds[count] = dict(
+                    command = "powershell.exe -executionpolicy Bypass -File "+cfn_file_key,
+                    waitAfterCompletion = "forever"
+                )
+            else:
+                cmds[count] = dict(command="powershell.exe -executionpolicy Bypass -File "+cfn_file_key)
+
+    metadata = cloudformation.Metadata(
+        cloudformation.Init(
+            cloudformation.InitConfigSets(config1=["initconfig1"]),
+            initconfig1=cloudformation.InitConfig( files=cfn_files, commands=cmds)
+        )
+    )
+    return metadata
+
 def windows_userdata(
         powershell_files = None,
         sub_values = None):
@@ -543,9 +601,10 @@ def windows_userdata(
 
     messages = MIMEMultipart()
     cloudconf = dict()
-    put_file = []
+    put_file = ["<powershell>\n"]
     for b in powershell_files:
         put_file.extend(read_file(b))
+    put_file.append("\n</powershell>")
     cloudconf["script"] = literal_unicode("".join(put_file))
     if len(cloudconf) > 0:
         add_cloudconf(messages, "cloudconf.txt", cloudconf)
