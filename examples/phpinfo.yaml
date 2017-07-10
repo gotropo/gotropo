@@ -18,7 +18,7 @@ vpn_route:
 build_ami: false
 cloudwatch_alarm: false
 SSLCert_arn: "arn:aws:iam::1234:server-certificate/certificate-name"
-userdata_file: config/phpinfo.userdata
+userdata_file: examples/phpinfo.userdata
 install_packages:
   - httpd
   - php
